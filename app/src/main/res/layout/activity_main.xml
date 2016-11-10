@@ -93,40 +93,41 @@
             android:layout_height="42dp">
 
             <Button
-                android:text="PREV"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/button_prev"
-                android:layout_weight="1" />
+                android:layout_weight="1"
+                android:elevation="0dp"
+                android:background="@android:drawable/ic_media_previous" />
 
             <Button
-                android:text="PLAY"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/button_play"
-                android:layout_weight="1" />
+                android:layout_weight="1"
+                android:background="@android:drawable/ic_media_play" />
 
             <Button
-                android:text="PAUSE"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/button_pause"
                 android:layout_weight="1"
-                android:textSize="13sp" />
+                android:textSize="13sp"
+                android:background="@android:drawable/ic_media_pause" />
 
             <Button
-                android:text="NEXT"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/button_next"
-                android:layout_weight="1" />
+                android:layout_weight="1"
+                android:background="@android:drawable/ic_media_next" />
 
             <Button
-                android:text="rep"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/button_repeat"
-                android:layout_weight="1" />
+                android:layout_weight="1"
+                android:background="@android:drawable/ic_menu_revert" />
         </LinearLayout>
 
         <android.support.v7.widget.RecyclerView
@@ -144,7 +145,7 @@
 
             <EditText
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:inputType="textPersonName"
                 android:text="title, artist..."
                 android:ems="10"
@@ -153,11 +154,10 @@
 
             <ImageButton
                 android:layout_width="35dp"
-                android:layout_height="match_parent"
-                app:srcCompat="@drawable/close_icon2"
+                android:layout_height="35dp"
+                app:srcCompat="@android:drawable/ic_search_category_default"
                 android:id="@+id/button_search"
-                android:scaleType="fitCenter"
-                android:layout_weight="0.59" />
+                android:scaleType="fitCenter" />
         </LinearLayout>
 
         <LinearLayout

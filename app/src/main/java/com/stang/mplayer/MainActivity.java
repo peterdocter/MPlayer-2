@@ -152,6 +152,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         filter = new IntentFilter();
         filter.addAction(PlayerService.ACTION_PROGRESS_CHANGED);
         filter.addAction(PlayerService.ACTION_STATUS_CHANGED);
+        filter.addAction(PlayerService.ACTION_EXIT);
 
         receiver = new BroadcastReceiver() {
             @Override
@@ -177,6 +178,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             mPlaylist.scrollToPosition(position);
                             mAdapter.notifyDataSetChanged();
                         }
+                        break;
+                    case PlayerService.ACTION_EXIT :
+                        killService();
                         break;
                 }
             }
@@ -401,7 +405,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
 
             case R.id.button_search:
-                killService();
+                //
         }
     }
 

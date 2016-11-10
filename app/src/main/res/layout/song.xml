@@ -8,10 +8,12 @@
     android:layout_marginBottom="1dp">
 
     <ImageView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         app:srcCompat="@mipmap/ic_launcher"
-        android:id="@+id/songItem_album" />
+        android:id="@+id/songItem_album"
+        android:adjustViewBounds="false"
+        android:cropToPadding="false" />
 
     <LinearLayout
         android:orientation="vertical"
@@ -24,8 +26,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:id="@+id/songItem_song"
-            android:textSize="14sp"
-            android:paddingTop="0dp" />
+            android:paddingTop="0dp"
+            android:paddingLeft="5dp" />
 
         <TextView
             android:text="Artist"
@@ -34,6 +36,7 @@
             android:id="@+id/songItem_artist"
             android:textSize="10sp"
             android:paddingTop="0dp"
+            android:paddingLeft="5dp"
             android:layout_gravity="bottom"/>
 
     </LinearLayout>

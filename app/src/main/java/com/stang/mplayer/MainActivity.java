@@ -3,6 +3,7 @@ package com.stang.mplayer;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -31,6 +32,9 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.nostra13.universalimageloader.core.ImageLoader;
+import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
+
 import java.util.ArrayList;
 
 
@@ -48,11 +52,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private int playlistPosition = -1;
 
     LinearLayoutManager mLayoutManager;
-    Button prevButton;
-    Button nextButton;
-    Button playButton;
-    Button pauseButton;
-    Button repeatButton;
+    ImageButton prevButton;
+    ImageButton nextButton;
+    ImageButton playButton;
+    ImageButton pauseButton;
+    ImageButton repeatButton;
     Button addButton;
     Button addFolderButton;
     Button deleteButton;
@@ -96,11 +100,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         });
 
-        prevButton = (Button) findViewById(R.id.button_prev);
-        nextButton = (Button) findViewById(R.id.button_next);
-        playButton = (Button) findViewById(R.id.button_play);
-        pauseButton = (Button) findViewById(R.id.button_pause);
-        repeatButton = (Button) findViewById(R.id.button_repeat);
+        prevButton = (ImageButton) findViewById(R.id.button_prev);
+        nextButton = (ImageButton) findViewById(R.id.button_next);
+        playButton = (ImageButton) findViewById(R.id.button_play);
+        pauseButton = (ImageButton) findViewById(R.id.button_pause);
+        repeatButton = (ImageButton) findViewById(R.id.button_repeat);
         addButton = (Button) findViewById(R.id.button_addFile);
         addFolderButton = (Button) findViewById(R.id.button_addFolder);
         deleteButton = (Button) findViewById(R.id.button_delete);
@@ -171,7 +175,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             Song song = ((RecyclerAdapter)mPlaylist.getAdapter()).getSong(position);
                             songTitle.setText(song.songTitle);
                             artistTitle.setText(song.artistTitle);
-                            albumImage.setImageDrawable(song.albumImage);
+
+                            //albumImage.setImageDrawable(song.albumImage);
+                            mAdapter.imageLoader.displayImage(song.albumImage, albumImage);
+
                             duration.setText(String.valueOf(dur));
                             //remain.setText("");
                             mAdapter.setCurrentPosition(position);
@@ -212,7 +219,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Song song = mAdapter.getPlaylist().get(mAdapter.getCurrentPosition());
                 songTitle.setText(song.songTitle);
                 artistTitle.setText(song.artistTitle);
-                albumImage.setImageDrawable(song.albumImage);
+                //albumImage.setImageDrawable(song.albumImage);
+                mAdapter.imageLoader.displayImage(song.albumImage, albumImage);
             }
         }
 
@@ -276,7 +284,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Song song = mPlayerService.getPlaylist().get(position);
             songTitle.setText(song.songTitle);
             artistTitle.setText(song.artistTitle);
-            albumImage.setImageDrawable(song.albumImage);
+            //albumImage.setImageDrawable(song.albumImage);
+            mAdapter.imageLoader.displayImage(song.albumImage, albumImage);
         }
     }
 
@@ -348,22 +357,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 String artist = cursor.getString(artistColumn);
                 String filename = "file://" + cursor.getString(filenameColumn);
                 String duration = cursor.getString(durationColumn);
-                Drawable album = null;
 
-//                Cursor c = contentResolver.query(MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI,
-//                        new String[] {MediaStore.Audio.Albums._ID, MediaStore.Audio.Albums.ALBUM_ART},
-//                        MediaStore.Audio.Albums._ID+ "=?",
-//                        new String[] {String.valueOf(albumId)},
-//                        null);
-//                if (c.moveToFirst()) {
-//                    String path = c.getString(cursor.getColumnIndex(MediaStore.Audio.Albums.ALBUM_ART));
-//                    // do whatever you need to do
-//                    album = Drawable.createFromPath(path);
-//                }
-
+                Uri mainAlbumArtUri = Uri.parse("content://media/external/audio/albumart");
+                Uri albumArtUri = ContentUris.withAppendedId(mainAlbumArtUri, albumId);
 
                 //title = "id:"+id+" "+title+" ("+duration+")";
-                songs.add(new Song(title, artist, String.valueOf(filename), album));
+                songs.add(new Song(title, artist, String.valueOf(filename), albumArtUri.toString()));
 
                 Log.d(TAG, "getPlayListFromURI:: " + title + " filename:: " + filename);
             } while (cursor.moveToNext());

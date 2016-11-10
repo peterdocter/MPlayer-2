@@ -1,6 +1,7 @@
 package com.stang.mplayer;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
@@ -9,6 +10,14 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+
+import com.nostra13.universalimageloader.cache.disc.naming.HashCodeFileNameGenerator;
+import com.nostra13.universalimageloader.cache.memory.impl.UsingFreqLimitedMemoryCache;
+import com.nostra13.universalimageloader.core.DisplayImageOptions;
+import com.nostra13.universalimageloader.core.ImageLoader;
+import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
+import com.nostra13.universalimageloader.core.assist.ImageScaleType;
+import com.nostra13.universalimageloader.core.download.BaseImageDownloader;
 
 import java.util.ArrayList;
 
@@ -20,6 +29,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
     public static final String TAG = RecyclerAdapter.class.getSimpleName();
     public static final int COLOR_SELECTED = Color.GREEN;
     public static final int[] backColors = { Color.rgb(230,230,230), Color.rgb(255,255,255)};
+    ImageLoader imageLoader;
     private OnClickListener mOnClickListener;
     private OnQueueChangeListener mOnQueueChangeListener;
     private Context mContext;
@@ -116,9 +126,36 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
             mDataset = new ArrayList<Song>();
         }
 
+        imageLoader = ImageLoader.getInstance(); // Получили экземпляр
+        DisplayImageOptions options = new DisplayImageOptions.Builder()
+                .showStubImage(R.drawable.android_delete)
+                .showImageOnFail(R.drawable.ipod_player_icon1)
+                .showImageForEmptyUri(R.drawable.ipod_player_icon1)
+                //.imageScaleType(ImageScaleType.EXACTLY_STRETCHED)
+                //.resetViewBeforeLoading()
+                //.cacheInMemory()
+                //.cacheOnDisc()
+                //.decodingType(ImageScaleType.EXACTLY)
+                .build();
+        ImageLoaderConfiguration config = new ImageLoaderConfiguration.Builder(context)
+                //.memoryCacheExtraOptions(480, 800) // width, height
+                //.discCacheExtraOptions(480, 800, Bitmap.CompressFormat.JPEG, 75) // width, height, compress format, quality
+                .threadPoolSize(5)
+                .threadPriority(Thread.MIN_PRIORITY + 2)
+                .denyCacheImageMultipleSizesInMemory()
+                .memoryCache(new UsingFreqLimitedMemoryCache(2 * 1024 * 1024)) // 2 Mb
+                //.discCache(new UnlimitedDiscCache(cacheDir))
+                //.discCacheFileNameGenerator(new HashCodeFileNameGenerator())
+                //.imageDownloader(new BaseImageDownloader(5 * 1000, 30 * 1000)) // connectTimeout (5 s), readTimeout (30 s)
+                .defaultDisplayImageOptions(options)
+                //.enableLogging()
+                .build();
+        imageLoader.init(config); // Проинициализировали конфигом по умолчанию
+
 //        if(mDataset!=null && mDataset.size()>0) {
 //            mCurrentPosition = 0;
 //        }
+
         mQueue = new ArrayList<>();
     }
 
@@ -190,9 +227,11 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
     public void onBindViewHolder(final ViewHolder holder, final int position) {
         Song s = mDataset.get(position);
 
-        holder.mTitle.setText(s.songTitle + " :: " + s.artistTitle);
-        holder.mArtist.setText(s.fileName);
-        holder.mImage.setImageDrawable(s.albumImage);
+        holder.mTitle.setText(s.songTitle);
+        holder.mArtist.setText(s.artistTitle);
+
+        //holder.mImage.setImageDrawable(s.albumImage);
+        imageLoader.displayImage(s.albumImage, holder.mImage);
 
         holder.mOrder.setTag(position);
         String orderText = "";
@@ -205,7 +244,6 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
         holder.itemView.setBackgroundColor(getBackgroundItemColor(position));
         int aPos = holder.getAdapterPosition();
         //Log.d(TAG, "onBindViewHolder getAdapterPosition: " + aPos + " position: " + position);
-
     }
 
     @Override

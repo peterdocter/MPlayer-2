@@ -24,11 +24,14 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.SeekBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -62,7 +65,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     Button deleteButton;
     Button clearButton;
     EditText searchText;
-    ImageButton searchButton;
+    Spinner searchSpinner;
+    Spinner sortSpinner;
     ImageView albumImage;
     TextView artistTitle;
     TextView songTitle;
@@ -110,7 +114,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         deleteButton = (Button) findViewById(R.id.button_delete);
         clearButton = (Button) findViewById(R.id.button_clear);
         searchText = (EditText) findViewById(R.id.editText_search);
-        searchButton = (ImageButton) findViewById(R.id.button_search);
+        searchSpinner = (Spinner) findViewById(R.id.spinner_search);
+        sortSpinner = (Spinner) findViewById(R.id.spinner_sort);
 
 
         albumImage = (ImageView) findViewById(R.id.imageView_album);
@@ -129,7 +134,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         addFolderButton.setOnClickListener(this);
         deleteButton.setOnClickListener(this);
         clearButton.setOnClickListener(this);
-        searchButton.setOnClickListener(this);
+//        searchSpinner.setOnClickListener(this);
+//        sortSpinner.setOnClickListener(this);
 
 
         mLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
@@ -152,6 +158,43 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         });
         mPlaylist.setAdapter(mAdapter);
+
+        // SEARCH SPINNER
+        String[] searchCriteria = {"search:Song", "search:Artist", "search:Album"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, searchCriteria);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        searchSpinner.setAdapter(adapter);
+        searchSpinner.setPrompt("Search");
+        searchSpinner.setSelection(0);
+        searchSpinner.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent, View view,
+                                               int position, long id) {
+                        Toast.makeText(getBaseContext(), "SEARCH Position = " + position, Toast.LENGTH_SHORT).show();
+                    }
+                    @Override
+                    public void onNothingSelected(AdapterView<?> arg0) {
+                    }
+                });
+        // SORT SPINNER
+        String[] sortCriteria = {"sort:Song", "sort:Artist", "sort:Date", "sort:Duration"};
+        ArrayAdapter<String> sortAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, sortCriteria);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        sortSpinner.setAdapter(sortAdapter);
+        sortSpinner.setPrompt("Search");
+        sortSpinner.setSelection(1);
+        sortSpinner.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent, View view,
+                                               int position, long id) {
+                        Toast.makeText(getBaseContext(), "SORT Position = " + position, Toast.LENGTH_SHORT).show();
+                    }
+                    @Override
+                    public void onNothingSelected(AdapterView<?> arg0) {
+                    }
+                });
 
         filter = new IntentFilter();
         filter.addAction(PlayerService.ACTION_PROGRESS_CHANGED);
@@ -403,8 +446,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 addFolder();
                 break;
 
-            case R.id.button_search:
-                //
         }
     }
 

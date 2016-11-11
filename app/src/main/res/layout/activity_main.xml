@@ -145,26 +145,32 @@
             android:layout_weight="1">
 
             <EditText
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
+                android:layout_width="114dp"
+                android:layout_height="wrap_content"
                 android:inputType="textPersonName"
-                android:text="title, artist..."
                 android:ems="10"
                 android:id="@+id/editText_search"
+                android:textSize="14sp"
+                android:singleLine="true"
+                android:selectAllOnFocus="true" />
+
+            <Spinner
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/spinner_search"
                 android:layout_weight="1" />
 
-            <ImageButton
-                android:layout_width="35dp"
-                android:layout_height="35dp"
-                app:srcCompat="@android:drawable/ic_search_category_default"
-                android:id="@+id/button_search"
-                android:scaleType="fitCenter" />
+            <Spinner
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/spinner_sort"
+                android:layout_weight="1" />
         </LinearLayout>
 
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
-            android:layout_height="38dp">
+            android:layout_height="22dp">
 
             <Button
                 android:text="+File"

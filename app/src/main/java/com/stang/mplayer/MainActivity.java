@@ -17,7 +17,6 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.provider.MediaStore;
-import android.provider.Settings;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
@@ -30,6 +29,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.SearchView;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -64,7 +64,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     Button addFolderButton;
     Button deleteButton;
     Button clearButton;
-    EditText searchText;
+    SearchView searchView;
     Spinner searchSpinner;
     Spinner sortSpinner;
     ImageView albumImage;
@@ -113,7 +113,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         addFolderButton = (Button) findViewById(R.id.button_addFolder);
         deleteButton = (Button) findViewById(R.id.button_delete);
         clearButton = (Button) findViewById(R.id.button_clear);
-        searchText = (EditText) findViewById(R.id.editText_search);
+        searchView = (SearchView) findViewById(R.id.searchView);
         searchSpinner = (Spinner) findViewById(R.id.spinner_search);
         sortSpinner = (Spinner) findViewById(R.id.spinner_sort);
 
@@ -134,13 +134,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         addFolderButton.setOnClickListener(this);
         deleteButton.setOnClickListener(this);
         clearButton.setOnClickListener(this);
-//        searchSpinner.setOnClickListener(this);
-//        sortSpinner.setOnClickListener(this);
 
 
         mLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
         mPlaylist.setLayoutManager(mLayoutManager);
 
+
+        //PLAYLIST Adapter
+        //-------------------------------------
         mAdapter = new RecyclerAdapter(this, null);
         mAdapter.setOnItemClickListener(new RecyclerAdapter.OnClickListener() {
             @Override
@@ -160,7 +161,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mPlaylist.setAdapter(mAdapter);
 
         // SEARCH SPINNER
-        String[] searchCriteria = {"search:Song", "search:Artist", "search:Album"};
+        //--------------------------------------
+        String[] searchCriteria = {"Song", "Artist", "Album"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, searchCriteria);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         searchSpinner.setAdapter(adapter);
@@ -171,13 +173,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     @Override
                     public void onItemSelected(AdapterView<?> parent, View view,
                                                int position, long id) {
-                        Toast.makeText(getBaseContext(), "SEARCH Position = " + position, Toast.LENGTH_SHORT).show();
+                        //Toast.makeText(getBaseContext(), "SEARCH Position = " + position, Toast.LENGTH_SHORT).show();
+                        mAdapter.searchType = position;
+                        mAdapter.doSearch();
+                        onPlaylistChanged();
                     }
                     @Override
                     public void onNothingSelected(AdapterView<?> arg0) {
                     }
                 });
         // SORT SPINNER
+        //-------------------------------------
         String[] sortCriteria = {"sort:Song", "sort:Artist", "sort:Date", "sort:Duration"};
         ArrayAdapter<String> sortAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, sortCriteria);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -189,13 +195,47 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     @Override
                     public void onItemSelected(AdapterView<?> parent, View view,
                                                int position, long id) {
-                        Toast.makeText(getBaseContext(), "SORT Position = " + position, Toast.LENGTH_SHORT).show();
+                        //Toast.makeText(getBaseContext(), "SORT Position = " + position, Toast.LENGTH_SHORT).show();
+                        mAdapter.sortType = position;
+                        mAdapter.doSort();
+                        onPlaylistChanged();
                     }
                     @Override
                     public void onNothingSelected(AdapterView<?> arg0) {
                     }
                 });
 
+        //SEARCH VIEW
+        //-----------------------------------------
+        searchView.setQueryHint("Search...");
+        searchView.setOnQueryTextFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                //Toast.makeText(getBaseContext(), String.valueOf(hasFocus), Toast.LENGTH_SHORT).show();
+            }
+        });
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                //Toast.makeText(getBaseContext(), query, Toast.LENGTH_SHORT).show();
+                mAdapter.searchPhrase = query;
+                mAdapter.doSearch();
+                onPlaylistChanged();
+                return false;
+            }
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                //Toast.makeText(getBaseContext(), newText, Toast.LENGTH_SHORT).show();
+                mAdapter.searchPhrase = newText;
+                mAdapter.doSearch();
+                onPlaylistChanged();
+                return false;
+            }
+        });
+
+
+        //Broadcast Receiver
+        //---------------------------------------------------
         filter = new IntentFilter();
         filter.addAction(PlayerService.ACTION_PROGRESS_CHANGED);
         filter.addAction(PlayerService.ACTION_STATUS_CHANGED);
@@ -242,6 +282,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Log.d(TAG,"OnCreate finish");
     }
 
+
     public ServiceConnection myConnection = new ServiceConnection() {
 
         public void onServiceConnected(ComponentName className, IBinder binder) {
@@ -256,6 +297,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mAdapter.setPlaylist(mPlayerService.getPlaylist());
             mAdapter.setQueue(mPlayerService.getQueue());
             mAdapter.setCurrentPosition(mPlayerService.getCurrentPosition());
+
             mAdapter.notifyDataSetChanged();
 
             if (mAdapter.getCurrentPosition() > -1) {
@@ -264,6 +306,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 artistTitle.setText(song.artistTitle);
                 //albumImage.setImageDrawable(song.albumImage);
                 mAdapter.imageLoader.displayImage(song.albumImage, albumImage);
+                mPlaylist.scrollToPosition(mAdapter.getCurrentPosition());
             }
         }
 
@@ -355,6 +398,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mPlayerService.setPlayList(mAdapter.getPlaylist());
         mPlayerService.setQueue(mAdapter.getQueue());
         mPlayerService.setCurrentPosition(mAdapter.getCurrentPosition());
+        mAdapter.notifyDataSetChanged();
+        mPlaylist.scrollToPosition(0);
     }
 
 
@@ -391,6 +436,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     .getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME);
             int filenameColumn = cursor
                     .getColumnIndex(MediaStore.Audio.Media.DATA);
+            int albumColumn = cursor
+                    .getColumnIndex(MediaStore.Audio.Media.ALBUM);
             int albumId = cursor
                     .getColumnIndex(MediaStore.Audio.Media.ALBUM_ID);
 
@@ -398,6 +445,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 long id = cursor.getLong(idColumn);
                 String title = cursor.getString(titleColumn);
                 String artist = cursor.getString(artistColumn);
+                String album = cursor.getString(albumColumn);
                 String filename = "file://" + cursor.getString(filenameColumn);
                 String duration = cursor.getString(durationColumn);
 
@@ -405,7 +453,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Uri albumArtUri = ContentUris.withAppendedId(mainAlbumArtUri, albumId);
 
                 //title = "id:"+id+" "+title+" ("+duration+")";
-                songs.add(new Song(title, artist, String.valueOf(filename), albumArtUri.toString()));
+                songs.add(new Song(title, artist, album, String.valueOf(filename), albumArtUri.toString()));
 
                 Log.d(TAG, "getPlayListFromURI:: " + title + " filename:: " + filename);
             } while (cursor.moveToNext());
@@ -499,6 +547,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (requestCode == FILE_SELECT_CODE) {
                 String title = data.getDataString();;
                 String artist = "";
+                String album = "";
+                String albumId = "";
 
                 Uri selectedFileUri = data.getData();
                 String path = data.getDataString();
@@ -508,12 +558,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if(cursor != null) {
                     cursor.moveToFirst();
                     title = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME));
-                    artist = "";//cursor.getString(cursor.getColumnIndex("summary"));
+                    artist = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST));
+                    album = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM));
+                    albumId = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID));
                 }
 
                 Log.e(TAG + "SELECT FILE:", title + " path:" + path + " artist: " + artist);
 
-                mAdapter.addSong(new Song(title, artist, path, null));
+                mAdapter.addSong(new Song(title, artist, album, path, albumId));
 
                 if(playlistPosition < 0) playlistPosition = 0;
                 onPlaylistChanged();

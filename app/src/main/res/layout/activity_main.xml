@@ -133,44 +133,44 @@
 
         <android.support.v7.widget.RecyclerView
             android:layout_width="match_parent"
-            android:layout_height="258dp"
+            android:layout_height="144dp"
             android:choiceMode="singleChoice"
             android:listSelector="@android:color/darker_gray"
-            android:id="@+id/listView_playlist" />
+            android:id="@+id/listView_playlist"
+            android:layout_weight="0.78" />
 
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_weight="1">
+            android:layout_height="wrap_content"
+            android:weightSum="1">
 
-            <EditText
-                android:layout_width="114dp"
-                android:layout_height="wrap_content"
+            <SearchView
+                android:layout_width="226dp"
+                android:layout_height="match_parent"
                 android:inputType="textPersonName"
                 android:ems="10"
-                android:id="@+id/editText_search"
+                android:id="@+id/searchView"
                 android:textSize="14sp"
-                android:singleLine="true"
                 android:selectAllOnFocus="true" />
 
             <Spinner
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:id="@+id/spinner_search"
-                android:layout_weight="1" />
-
-            <Spinner
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:id="@+id/spinner_sort"
-                android:layout_weight="1" />
+                android:layout_height="match_parent"
+                android:id="@+id/spinner_search" />
         </LinearLayout>
+
+        <Spinner
+            android:layout_width="134dp"
+            android:layout_height="wrap_content"
+            android:id="@+id/spinner_sort"
+            android:layout_gravity="right"
+            android:layout_weight="0.11" />
 
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
-            android:layout_height="22dp">
+            android:layout_height="9dp">
 
             <Button
                 android:text="+File"

@@ -64,8 +64,10 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
     public interface OnClickListener {
         void onClick(View view, int position);
     }
+
     public interface OnQueueChangeListener {
         void onChange(ArrayList<Integer> newQueue);
+
     }
 
     public void setOnItemClickListener(OnClickListener l) {
@@ -84,7 +86,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
         if((mDataset.size() > 0) && (position < 0 || position >= mDataset.size())) {
             position = 0;
         }
-        if(position > -1 && position < mDataset.size()){
+        if(position > RecyclerView.NO_POSITION && position < mDataset.size()){
             notifyItemChanged(position);
             notifyItemChanged(mCurrentPosition);
         }
@@ -222,13 +224,20 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
     }
 
     public void setPlaylist(ArrayList<Song> list) {
+        mDataset = list;
         mSourceDataset = list;
-        doSearch();
+        if(list != null  &&  list.size() > 0) {
+            setCurrentPosition(0);
+        }
+        //doSearch();
         //doSort();
         //notifyDataSetChanged();
     }
 
     public void setQueue(ArrayList<Integer> queue) {
+        for (int i = 0; i < queue.size(); i++) {
+            Log.d(TAG, "QUEUE: " + queue.get(i));
+        }
         mQueue = queue;
         notifyDataSetChanged();
     }
@@ -244,7 +253,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
 
     public void doSearch() {
         Log.d(TAG, "doSearch");
-        setCurrentPosition(0);
+        //setCurrentPosition(0);
         ArrayList<Song> searchResult = new ArrayList<>();
         String searchField = null;
         for (int i = 0; i < mSourceDataset.size(); i++) {
@@ -295,6 +304,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
             }
         });
         mQueue = new ArrayList<>();
+        mOnQueueChangeListener.onChange(mQueue);
         //notifyDataSetChanged();
     }
 

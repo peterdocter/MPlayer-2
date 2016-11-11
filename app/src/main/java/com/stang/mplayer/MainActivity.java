@@ -52,7 +52,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private RecyclerAdapter mAdapter;
 
-    private int playlistPosition = -1;
+    private int playlistPosition = RecyclerView.NO_POSITION;
 
     LinearLayoutManager mLayoutManager;
     ImageButton prevButton;
@@ -154,7 +154,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void onChange(ArrayList<Integer> newQueue) {
                 if(mPlayerService != null) {
-                    mPlayerService.setQueue(newQueue);
+                    //mPlayerService.setQueue(newQueue);
                 }
             }
         });
@@ -167,16 +167,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         searchSpinner.setAdapter(adapter);
         searchSpinner.setPrompt("Search");
-        searchSpinner.setSelection(0);
+        searchSpinner.setSelection(RecyclerAdapter.SEARCH_SONG);
         searchSpinner.setOnItemSelectedListener(
                 new AdapterView.OnItemSelectedListener() {
                     @Override
                     public void onItemSelected(AdapterView<?> parent, View view,
                                                int position, long id) {
-                        //Toast.makeText(getBaseContext(), "SEARCH Position = " + position, Toast.LENGTH_SHORT).show();
-                        mAdapter.searchType = position;
-                        mAdapter.doSearch();
-                        onPlaylistChanged();
+                        if(mAdapter.searchType!=position) {
+                            mAdapter.searchType = position;
+                            mAdapter.doSearch();
+                            onPlaylistChanged();
+                        }
                     }
                     @Override
                     public void onNothingSelected(AdapterView<?> arg0) {
@@ -189,16 +190,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         sortSpinner.setAdapter(sortAdapter);
         sortSpinner.setPrompt("Search");
-        sortSpinner.setSelection(1);
+        sortSpinner.setSelection(RecyclerAdapter.SEARCH_SONG);
         sortSpinner.setOnItemSelectedListener(
                 new AdapterView.OnItemSelectedListener() {
                     @Override
                     public void onItemSelected(AdapterView<?> parent, View view,
                                                int position, long id) {
-                        //Toast.makeText(getBaseContext(), "SORT Position = " + position, Toast.LENGTH_SHORT).show();
-                        mAdapter.sortType = position;
-                        mAdapter.doSort();
-                        onPlaylistChanged();
+                        if(mAdapter.sortType!=position) {
+                            mAdapter.sortType = position;
+                            mAdapter.doSort();
+                            onPlaylistChanged();
+                        }
                     }
                     @Override
                     public void onNothingSelected(AdapterView<?> arg0) {
@@ -218,17 +220,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public boolean onQueryTextSubmit(String query) {
                 //Toast.makeText(getBaseContext(), query, Toast.LENGTH_SHORT).show();
-                mAdapter.searchPhrase = query;
-                mAdapter.doSearch();
-                onPlaylistChanged();
+                if(!mAdapter.searchPhrase.equalsIgnoreCase(query)) {
+                    mAdapter.searchPhrase = query;
+                    mAdapter.doSearch();
+                    onPlaylistChanged();
+                }
                 return false;
             }
             @Override
             public boolean onQueryTextChange(String newText) {
-                //Toast.makeText(getBaseContext(), newText, Toast.LENGTH_SHORT).show();
-                mAdapter.searchPhrase = newText;
-                mAdapter.doSearch();
-                onPlaylistChanged();
+                if(!mAdapter.searchPhrase.equalsIgnoreCase(newText)) {
+                    mAdapter.searchPhrase = newText;
+                    mAdapter.doSearch();
+                    onPlaylistChanged();
+                }
                 return false;
             }
         });
@@ -294,20 +299,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 list = getPlayListFromURI(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI);
                 mPlayerService.setPlayList(list);
             }
-            mAdapter.setPlaylist(mPlayerService.getPlaylist());
+            mAdapter.setPlaylist(list);
             mAdapter.setQueue(mPlayerService.getQueue());
             mAdapter.setCurrentPosition(mPlayerService.getCurrentPosition());
-
-            mAdapter.notifyDataSetChanged();
+            Log.d(TAG, "onServiceConnected currentPosition = " + mAdapter.getCurrentPosition());
 
             if (mAdapter.getCurrentPosition() > -1) {
                 Song song = mAdapter.getPlaylist().get(mAdapter.getCurrentPosition());
                 songTitle.setText(song.songTitle);
                 artistTitle.setText(song.artistTitle);
                 //albumImage.setImageDrawable(song.albumImage);
-                mAdapter.imageLoader.displayImage(song.albumImage, albumImage);
+                try {
+                    mAdapter.imageLoader.displayImage(song.albumImage, albumImage);
+                } catch (Exception e) {
+                    //
+                }
                 mPlaylist.scrollToPosition(mAdapter.getCurrentPosition());
             }
+            mAdapter.notifyDataSetChanged();
         }
 
         public void onServiceDisconnected(ComponentName className) {
@@ -399,7 +408,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mPlayerService.setQueue(mAdapter.getQueue());
         mPlayerService.setCurrentPosition(mAdapter.getCurrentPosition());
         mAdapter.notifyDataSetChanged();
-        mPlaylist.scrollToPosition(0);
+        mPlaylist.scrollToPosition(mAdapter.getCurrentPosition());
     }
 
 
@@ -528,7 +537,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void addFolder(){
         mAdapter.setPlaylist(getPlayListFromURI(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI));
-        mAdapter.notifyDataSetChanged();
+        //mAdapter.notifyDataSetChanged();
         onPlaylistChanged();
     }
 

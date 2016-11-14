@@ -148,6 +148,9 @@ public class PlayerService extends Service {
             Log.d(TAG, "service" + "onBind with extra");
             outMessenger = (Messenger) extras.get("MESSENGER");
         }
+
+        sendBroadcastStatus();
+
         return mBinder;
     }
 
@@ -268,15 +271,25 @@ public class PlayerService extends Service {
 
                 onPositionChanged();
                 showNotify(mPlaylist.get(mCurrentPosition).artistTitle + " :: " + mPlaylist.get(mCurrentPosition).songTitle);
+                sendBroadcastStatus();
 
-              Intent i = new Intent(PlayerService.ACTION_STATUS_CHANGED)
-                        .putExtra("position", mCurrentPosition)
-                        .putExtra("duration", mPlayer.getDuration());
-                sendBroadcast(i);
                 Log.d(TAG, "SERVICE mPlayer.onPrepared");
             }
         });
 
+    }
+
+
+    public void sendBroadcastStatus() {
+        int duration = 0;
+        if(mPlayer!=null && mPlayer.isPlaying()) {
+            duration = mPlayer.getDuration();
+        }
+
+        Intent i = new Intent(PlayerService.ACTION_STATUS_CHANGED)
+                .putExtra("position", mCurrentPosition)
+                .putExtra("duration", duration);
+        sendBroadcast(i);
     }
 
 

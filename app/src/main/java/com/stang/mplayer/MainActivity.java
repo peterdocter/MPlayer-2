@@ -346,6 +346,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 repeatButton.setImageResource(android.R.drawable.btn_star_big_off);
             }
 
+            mPlayerService.sendBroadcastStatus();
         }
 
         public void onServiceDisconnected(ComponentName className) {

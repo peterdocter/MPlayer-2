@@ -16,8 +16,10 @@
         <service android:name=".PlayerService"
             />
 
-        <activity android:name=".MainActivity" android:noHistory="true"
-            android:windowSoftInputMode="stateHidden|adjustPan">
+        <activity android:name=".MainActivity"
+            android:noHistory="true"
+            android:windowSoftInputMode="stateHidden|adjustPan"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

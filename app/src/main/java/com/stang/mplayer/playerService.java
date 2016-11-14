@@ -438,15 +438,23 @@ public class PlayerService extends Service {
 
         if(mQueue.size() > 0){
             int pos = getPositionInQueue(position);
-            if(pos == mQueue.size() -1) {
-                nextPosition = position + 1;
-                mQueue.remove(pos);
-            } else if (pos <= mQueue.size() -2){
-                nextPosition = mQueue.get(pos + 1);
-                for (int i = 0; i <= pos; i++) {
-                    mQueue.remove(i);
+            if(pos == -1) {
+                nextPosition = mQueue.get(0);
+                mQueue.remove(0);
+            } else
+            {
+                if(pos == mQueue.size() -1) {
+                    nextPosition = position + 1;
+                    mQueue.clear();
+                } else if (pos < mQueue.size() -1) {
+                    pos++;
+                    nextPosition = mQueue.get(pos);
+                    for (int i = pos; i >= 0; i--) {
+                        mQueue.remove(i);
+                    }
                 }
             }
+
         } else {
             nextPosition = position + 1;
         }

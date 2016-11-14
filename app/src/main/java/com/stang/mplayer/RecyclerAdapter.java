@@ -109,11 +109,6 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
         mContext = context;
         mResultDataset = new ArrayList<>();
         mSourceDataset = new ArrayList<>();
-//        if(dataset != null){
-//            mSourceDataset = dataset;
-//        } else {
-//            mSourceDataset = new ArrayList<Song>();
-//        }
 
         imageLoader = ImageLoader.getInstance(); // Получили экземпляр
         DisplayImageOptions options = new DisplayImageOptions.Builder()
@@ -324,7 +319,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
                 case SEARCH_ARTIST:
                     searchField = mSourceDataset.get(i).artistTitle;
                     break;
-                case SEARCH_ALBUM://
+                case SEARCH_ALBUM:
                     searchField = mSourceDataset.get(i).songTitle;
                     break;
             }

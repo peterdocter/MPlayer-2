@@ -48,7 +48,12 @@ public class PlayerService extends Service {
 
     public static final String TAG = MainActivity.class.getSimpleName();
 
-    private ArrayList<Song> mPlaylist;
+    public ArrayList<Song> mPlaylist;
+    public ArrayList<Song> mSourcelist;
+    public String searchPhrase = "";
+    public int searchType = RecyclerAdapter.SEARCH_SONG;
+    public int sortType = RecyclerAdapter.SORT_SONG;
+
     private ArrayList<Integer> mQueue;
     private int mCurrentPosition = RecyclerView.NO_POSITION;
     Handler handler;
@@ -74,7 +79,64 @@ public class PlayerService extends Service {
         }
     };
 
+    public int getCurrentPosition() {
+        return mCurrentPosition;
+    }
 
+
+    public int getPositionInQueue(int position) {
+        int p=RecyclerView.NO_POSITION;
+        for (int i = 0; i < mQueue.size(); i++) {
+            if(mQueue.get(i).equals(position)){
+                p = i;
+                break;
+            }
+        }
+        Log.d(TAG, "Position in Playlist:" + position + " Position in Queue: " + p);
+        return p;
+    }
+
+
+    public ArrayList<Song> getPlaylist() {
+        return mPlaylist;
+    }
+
+
+    public void setPlayList(ArrayList<Song> list) {
+        mPlaylist = list;
+    }
+
+    public ArrayList<Song> getSourcelist() {
+        return mSourcelist;
+    }
+
+
+    public void setSourceList(ArrayList<Song> list) {
+        mSourcelist = list;
+    }
+
+
+    public void setQueue(ArrayList<Integer> queue) {
+        mQueue = new ArrayList<Integer>(queue);
+    }
+
+
+    public ArrayList<Integer> getQueue() {
+        return mQueue;
+    }
+
+
+    public void setCurrentPosition(int position) {
+        mCurrentPosition = position;
+    }
+
+    public boolean isPlaying() {
+        if(mPlayer != null) {
+            return mPlayer.isPlaying();
+        } else {
+            return false;
+        }
+    }
 
     @Override
     public IBinder onBind(Intent arg0) {
@@ -104,6 +166,7 @@ public class PlayerService extends Service {
         handler = new Handler();
         mQueue = new ArrayList<>();
         mPlaylist = new ArrayList<>();
+        mSourcelist = new ArrayList<>();
 
         initPlayer();
 
@@ -134,7 +197,6 @@ public class PlayerService extends Service {
         registerReceiver(receiver, filter);
 
         //showNotify("");
-
         //nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
         Intent notificationIntent = new Intent(this, MainActivity.class);
@@ -177,6 +239,73 @@ public class PlayerService extends Service {
         startForeground(NOTIFY_ID, notification);
         //stopForeground(true);
 
+    }
+
+
+    public void initPlayer() {
+        mPlayer.setWakeMode(getApplicationContext(),
+                PowerManager.PARTIAL_WAKE_LOCK);
+        mPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+        mPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                nextTrack();
+                showNotify(mPlaylist.get(mCurrentPosition).artistTitle + " :: " + mPlaylist.get(mCurrentPosition).songTitle);
+                //onPositionChanged();
+            }
+        });
+        mPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+            @Override
+            public void onPrepared(MediaPlayer mp) {
+                mPlayer.start();
+                handler.removeCallbacks(updater);
+                handler.postDelayed(updater,1000);
+
+                onPositionChanged();
+                showNotify(mPlaylist.get(mCurrentPosition).artistTitle + " :: " + mPlaylist.get(mCurrentPosition).songTitle);
+
+              Intent i = new Intent(PlayerService.ACTION_STATUS_CHANGED)
+                        .putExtra("position", mCurrentPosition)
+                        .putExtra("duration", mPlayer.getDuration());
+                sendBroadcast(i);
+                Log.d(TAG, "SERVICE mPlayer.onPrepared");
+            }
+        });
+
+    }
+
+
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        Log.d(TAG, "SERVICE onStartCommand");
+        //Toast.makeText(this, "service onStartCommand", Toast.LENGTH_SHORT).show();
+        return super.onStartCommand(intent, flags, startId);
+    }
+
+
+    public void onDestroy() {
+        unregisterReceiver(receiver);
+        handler.removeCallbacks(updater);
+
+        if(mPlayer != null) {
+            mPlayer.reset();
+            mPlayer.release();
+        }
+
+        nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        nm.cancel(NOTIFY_ID);
+
+        super.onDestroy();
+        Log.d(TAG, "SERVICE onDestroy");
+    }
+
+
+    public void seekTo(int position) {
+        if (mPlayer != null && mPlayer.isPlaying()) {
+            int duration = mPlayer.getDuration();
+            int msec = (int)((float)duration * (float)((float)position/100F));
+            mPlayer.seekTo(msec);
+            Log.d(TAG, "SERVICE seekTo: " + position + " msec: " +  msec + " duration: " + duration);
+        }
     }
 
 
@@ -238,112 +367,6 @@ public class PlayerService extends Service {
     }
 
 
-    public void initPlayer() {
-        mPlayer.setWakeMode(getApplicationContext(),
-                PowerManager.PARTIAL_WAKE_LOCK);
-        mPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-        mPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-            @Override
-            public void onCompletion(MediaPlayer mp) {
-                nextTrack();
-                //onPositionChanged();
-            }
-        });
-        mPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-            @Override
-            public void onPrepared(MediaPlayer mp) {
-                mPlayer.start();
-                handler.removeCallbacks(updater);
-                handler.postDelayed(updater,1000);
-                onPositionChanged();
-//                Intent i = new Intent(PlayerService.ACTION_STATUS_CHANGED)
-//                        .putExtra("position", mCurrentPosition)
-//                        .putExtra("duration", mPlayer.getDuration());
-//                sendBroadcast(i);
-                Log.d(TAG, "SERVICE mPlayer.onPrepared");
-            }
-        });
-
-    }
-
-
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "SERVICE onStartCommand");
-        //Toast.makeText(this, "service onStartCommand", Toast.LENGTH_SHORT).show();
-        return super.onStartCommand(intent, flags, startId);
-    }
-
-
-    public void onDestroy() {
-        unregisterReceiver(receiver);
-        handler.removeCallbacks(updater);
-
-        if(mPlayer != null) {
-            mPlayer.reset();
-            mPlayer.release();
-        }
-
-        nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        nm.cancel(NOTIFY_ID);
-
-        super.onDestroy();
-        Log.d(TAG, "SERVICE onDestroy");
-    }
-
-
-    public void seekTo(int position) {
-        if (mPlayer != null && mPlayer.isPlaying()) {
-            int duration = mPlayer.getDuration();
-            int msec = (int)((float)duration * (float)((float)position/100F));
-            mPlayer.seekTo(msec);
-            Log.d(TAG, "SERVICE seekTo: " + position + " msec: " +  msec + " duration: " + duration);
-        }
-    }
-
-
-    public int getCurrentPosition() {
-        return mCurrentPosition;
-    }
-
-
-    public int getPositionInQueue(int position) {
-        int p=RecyclerView.NO_POSITION;
-        for (int i = 0; i < mQueue.size(); i++) {
-            if(mQueue.get(i).equals(position)){
-                p = i;
-                break;
-            }
-        }
-        Log.d(TAG, "Position in Playlist:" + position + " Position in Queue: " + p);
-        return p;
-    }
-
-
-    public ArrayList<Song> getPlaylist() {
-        return mPlaylist;
-    }
-
-
-    public void setPlayList(ArrayList<Song> list) {
-        mPlaylist = list;
-    }
-
-
-    public void setQueue(ArrayList<Integer> queue) {
-        mQueue = new ArrayList<Integer>(queue);
-    }
-
-
-    public ArrayList<Integer> getQueue() {
-        return mQueue;
-    }
-
-
-    public void setCurrentPosition(int position) {
-        mCurrentPosition = position;
-    }
-
-
     public void play(int position) {
         if(mPlaylist==null || position < 0 || position>=mPlaylist.size()) return;
 
@@ -357,7 +380,7 @@ public class PlayerService extends Service {
         //mAdapter.setCurrentPosition(position);
         Song song = mPlaylist.get(position);
 
-        showNotify(song.artistTitle + " :: " + song.songTitle);
+        //showNotify(song.artistTitle + " :: " + song.songTitle);
         Log.d(TAG, "PlayService.play() " + song.songTitle);
 
         try {
@@ -382,6 +405,11 @@ public class PlayerService extends Service {
                 handler.postDelayed(updater, 1000);
             }
         }
+        showNotify(mPlaylist.get(mCurrentPosition).artistTitle + " :: " + mPlaylist.get(mCurrentPosition).songTitle);
+        Intent i = new Intent(PlayerService.ACTION_STATUS_CHANGED)
+                .putExtra("position", mCurrentPosition)
+                .putExtra("duration", mPlayer.getDuration());
+        sendBroadcast(i);
     }
 
 

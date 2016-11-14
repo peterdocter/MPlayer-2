@@ -98,37 +98,26 @@
                 android:layout_height="wrap_content"
                 android:id="@+id/button_prev"
                 android:layout_weight="1"
-                android:elevation="0dp"
-                android:background="@android:drawable/ic_media_previous" />
-
-            <ImageButton
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:id="@+id/button_play"
-                android:layout_weight="1"
-                android:background="@android:drawable/ic_media_play" />
+                android:elevation="0dp" />
 
             <ImageButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/button_pause"
                 android:layout_weight="1"
-                android:textSize="13sp"
-                android:background="@android:drawable/ic_media_pause" />
+                android:textSize="13sp" />
 
             <ImageButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/button_next"
-                android:layout_weight="1"
-                android:background="@android:drawable/ic_media_next" />
+                android:layout_weight="1" />
 
             <ImageButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/button_repeat"
-                android:layout_weight="1"
-                android:background="@android:drawable/ic_menu_revert" />
+                android:layout_weight="1" />
         </LinearLayout>
 
         <android.support.v7.widget.RecyclerView

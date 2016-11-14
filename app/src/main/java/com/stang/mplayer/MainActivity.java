@@ -57,7 +57,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     LinearLayoutManager mLayoutManager;
     ImageButton prevButton;
     ImageButton nextButton;
-    ImageButton playButton;
     ImageButton pauseButton;
     ImageButton repeatButton;
     Button addButton;
@@ -106,7 +105,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         prevButton = (ImageButton) findViewById(R.id.button_prev);
         nextButton = (ImageButton) findViewById(R.id.button_next);
-        playButton = (ImageButton) findViewById(R.id.button_play);
         pauseButton = (ImageButton) findViewById(R.id.button_pause);
         repeatButton = (ImageButton) findViewById(R.id.button_repeat);
         addButton = (Button) findViewById(R.id.button_addFile);
@@ -126,10 +124,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
         prevButton.setOnClickListener(this);
+        prevButton.setImageResource(android.R.drawable.ic_media_previous);
         nextButton.setOnClickListener(this);
-        playButton.setOnClickListener(this);
+        nextButton.setImageResource(android.R.drawable.ic_media_next);
         pauseButton.setOnClickListener(this);
+        pauseButton.setImageResource(android.R.drawable.ic_media_play);
         repeatButton.setOnClickListener(this);
+        repeatButton.setImageResource(android.R.drawable.btn_radio);
         addButton.setOnClickListener(this);
         addFolderButton.setOnClickListener(this);
         deleteButton.setOnClickListener(this);
@@ -272,6 +273,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             mAdapter.setCurrentPosition(position);
                             mPlaylist.scrollToPosition(position);
                             mAdapter.notifyDataSetChanged();
+                            if(mPlayerService.isPlaying()) {
+                                pauseButton.setImageResource(android.R.drawable.ic_media_pause);
+                            } else {
+                                pauseButton.setImageResource(android.R.drawable.ic_media_play);
+                            }
+
                         }
                         break;
                     case PlayerService.ACTION_EXIT :
@@ -294,14 +301,23 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mPlayerService = ((PlayerService.MusicBinder) binder).getService();
             Log.d(TAG, "ServiceConnection " + "connected");
             //
-            ArrayList<Song> list = mPlayerService.getPlaylist();
-            if(list.size() == 0) {
-                list = getPlayListFromURI(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI);
-                mPlayerService.setPlayList(list);
+            mAdapter.mSourceDataset = mPlayerService.mSourcelist;
+            mAdapter.mResultDataset = mPlayerService.getPlaylist();
+            if(mAdapter.mSourceDataset.size() == 0) {
+                //list = getPlayListFromURI(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI);
+                //mPlayerService.setPlayList(list);
+                addFolder();
             }
-            mAdapter.setPlaylist(list);
+            //mAdapter.setPlaylist(list);
             mAdapter.setQueue(mPlayerService.getQueue());
             mAdapter.setCurrentPosition(mPlayerService.getCurrentPosition());
+            mAdapter.sortType = mPlayerService.sortType;
+            mAdapter.searchType = mPlayerService.searchType;
+            mAdapter.searchPhrase = mPlayerService.searchPhrase;
+            searchSpinner.setSelection(mPlayerService.searchType);
+            searchSpinner.invalidate();
+            searchView.setQuery(mPlayerService.searchPhrase, false);
+            searchView.invalidate();
             Log.d(TAG, "onServiceConnected currentPosition = " + mAdapter.getCurrentPosition());
 
             if (mAdapter.getCurrentPosition() > -1) {
@@ -317,6 +333,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 mPlaylist.scrollToPosition(mAdapter.getCurrentPosition());
             }
             mAdapter.notifyDataSetChanged();
+
+            if(mPlayerService.isPlaying()) {
+                pauseButton.setImageResource(android.R.drawable.ic_media_pause);
+            } else {
+                pauseButton.setImageResource(android.R.drawable.ic_media_play);
+            }
         }
 
         public void onServiceDisconnected(ComponentName className) {
@@ -399,6 +421,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void pause() {
         if(mPlayerService != null) {
             mPlayerService.pause();
+            if(mPlayerService.isPlaying()) {
+                pauseButton.setImageResource(android.R.drawable.ic_media_pause);
+            } else {
+                pauseButton.setImageResource(android.R.drawable.ic_media_play);
+            }
         }
     }
 
@@ -409,6 +436,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mPlayerService.setCurrentPosition(mAdapter.getCurrentPosition());
         mAdapter.notifyDataSetChanged();
         mPlaylist.scrollToPosition(mAdapter.getCurrentPosition());
+        mPlayerService.mSourcelist = mAdapter.mSourceDataset;
+        mPlayerService.sortType = mAdapter.sortType;
+        mPlayerService.searchType = mAdapter.searchType;
+        mPlayerService.searchPhrase = mAdapter.searchPhrase;
     }
 
 
@@ -479,10 +510,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 pause();
                 break;
 
-            case R.id.button_play:
-                play(mAdapter.getCurrentPosition());
-                break;
-
             case R.id.button_prev:
                 prevTrack();
                 break;
@@ -536,7 +563,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
     private void addFolder(){
-        mAdapter.setPlaylist(getPlayListFromURI(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI));
+
+        mAdapter.mSourceDataset = getPlayListFromURI(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI);
+        mAdapter.sortType = RecyclerAdapter.SORT_SONG;
+        mAdapter.searchType = RecyclerAdapter.SEARCH_SONG;
+        mAdapter.searchPhrase = "";
+        mAdapter.setPlaylist(new ArrayList<Song>(mAdapter.mSourceDataset));
         //mAdapter.notifyDataSetChanged();
         onPlaylistChanged();
     }

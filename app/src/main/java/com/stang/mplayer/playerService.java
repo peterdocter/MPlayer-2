@@ -53,6 +53,7 @@ public class PlayerService extends Service {
     public String searchPhrase = "";
     public int searchType = RecyclerAdapter.SEARCH_SONG;
     public int sortType = RecyclerAdapter.SORT_SONG;
+    public Boolean mRepeat = false;
 
     private ArrayList<Integer> mQueue;
     private int mCurrentPosition = RecyclerView.NO_POSITION;
@@ -249,7 +250,11 @@ public class PlayerService extends Service {
         mPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
-                nextTrack();
+                if(mRepeat) {
+                    play(mCurrentPosition);
+                } else {
+                    nextTrack();
+                }
                 showNotify(mPlaylist.get(mCurrentPosition).artistTitle + " :: " + mPlaylist.get(mCurrentPosition).songTitle);
                 //onPositionChanged();
             }
@@ -417,6 +422,7 @@ public class PlayerService extends Service {
         int position = getCurrentPosition();
         Log.d(TAG, "currentPosition before: " + getCurrentPosition());
         int nextPosition = RecyclerView.NO_POSITION;
+
         if(mQueue.size() > 0){
             int pos = getPositionInQueue(position);
             if(pos == mQueue.size() -1) {
@@ -431,6 +437,7 @@ public class PlayerService extends Service {
         } else {
             nextPosition = position + 1;
         }
+
 
         if(nextPosition < mPlaylist.size() ){
             play(nextPosition);

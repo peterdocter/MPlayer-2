@@ -339,6 +339,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             } else {
                 pauseButton.setImageResource(android.R.drawable.ic_media_play);
             }
+
+            if(mPlayerService.mRepeat) {
+                repeatButton.setImageResource(android.R.drawable.btn_star_big_on);
+            } else {
+                repeatButton.setImageResource(android.R.drawable.btn_star_big_off);
+            }
+
         }
 
         public void onServiceDisconnected(ComponentName className) {
@@ -519,7 +526,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
 
             case R.id.button_repeat:
-                //
+                if(mPlayerService.mRepeat) {
+                    repeatButton.setImageResource(android.R.drawable.btn_star_big_off);
+                    mPlayerService.mRepeat = false;
+                } else {
+                    repeatButton.setImageResource(android.R.drawable.btn_star_big_on);
+                    mPlayerService.mRepeat = true;
+                }
                 break;
 
             case R.id.button_addFile:

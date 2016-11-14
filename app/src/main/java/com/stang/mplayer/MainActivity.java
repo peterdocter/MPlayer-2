@@ -38,6 +38,7 @@ import android.widget.Toast;
 import com.nostra13.universalimageloader.core.ImageLoader;
 import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 
@@ -79,6 +80,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getSupportActionBar().hide();
         setContentView(R.layout.activity_main);
 
         mPlaylist = (RecyclerView) findViewById(R.id.listView_playlist);
@@ -107,10 +109,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         nextButton = (ImageButton) findViewById(R.id.button_next);
         pauseButton = (ImageButton) findViewById(R.id.button_pause);
         repeatButton = (ImageButton) findViewById(R.id.button_repeat);
-        addButton = (Button) findViewById(R.id.button_addFile);
-        addFolderButton = (Button) findViewById(R.id.button_addFolder);
-        deleteButton = (Button) findViewById(R.id.button_delete);
-        clearButton = (Button) findViewById(R.id.button_clear);
+        //addButton = (Button) findViewById(R.id.button_addFile);
+        //addFolderButton = (Button) findViewById(R.id.button_addFolder);
+        //deleteButton = (Button) findViewById(R.id.button_delete);
+        //clearButton = (Button) findViewById(R.id.button_clear);
         searchView = (SearchView) findViewById(R.id.searchView);
         searchSpinner = (Spinner) findViewById(R.id.spinner_search);
         sortSpinner = (Spinner) findViewById(R.id.spinner_sort);
@@ -131,10 +133,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         pauseButton.setImageResource(android.R.drawable.ic_media_play);
         repeatButton.setOnClickListener(this);
         repeatButton.setImageResource(android.R.drawable.btn_radio);
-        addButton.setOnClickListener(this);
-        addFolderButton.setOnClickListener(this);
-        deleteButton.setOnClickListener(this);
-        clearButton.setOnClickListener(this);
+        //addButton.setOnClickListener(this);
+        //addFolderButton.setOnClickListener(this);
+        //deleteButton.setOnClickListener(this);
+        //clearButton.setOnClickListener(this);
 
 
         mLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
@@ -268,7 +270,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             //albumImage.setImageDrawable(song.albumImage);
                             mAdapter.imageLoader.displayImage(song.albumImage, albumImage);
 
-                            duration.setText(String.valueOf(dur));
+                            duration.setText(intToTime(dur));
                             //remain.setText("");
                             mAdapter.setCurrentPosition(position);
                             mPlaylist.scrollToPosition(position);
@@ -452,9 +454,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
     public String intToTime(int time) {
+        time = time / 1000;
         int min = time/60;
-        int sec = time - min * 60;
-        return String.valueOf(min) + ":" + String.valueOf(sec);
+        int sec = (time % 60);
+        //DecimalFormat df = new DecimalFormat("#:##");
+        Log.d(TAG, "intToTime: " + time + ", " + min + " " + sec);
+        return String.format("%d:%2d", min, sec);
+        //return df.format();
     }
 
 
@@ -536,13 +542,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
                 break;
 
-            case R.id.button_addFile:
-                addFiles();
-                break;
-
-            case R.id.button_addFolder:
-                addFolder();
-                break;
+//            case R.id.button_addFile:
+//                addFiles();
+//                break;
+//
+//            case R.id.button_addFolder:
+//                addFolder();
+//                break;
 
         }
     }

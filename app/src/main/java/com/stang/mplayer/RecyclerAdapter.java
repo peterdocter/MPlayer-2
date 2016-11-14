@@ -176,6 +176,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
 
         //holder.mImage.setImageDrawable(s.albumImage);
         imageLoader.displayImage(s.albumImage, holder.mImage);
+        Log.d(TAG, "imageLoader uri: " + s.albumImage);
 
         holder.mOrder.setTag(position);
         String orderText = "";

@@ -25,12 +25,15 @@ import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * Created by Stanislav on 25.10.2016.
  */
 
 public class PlayerService extends Service {
+    public static final String TAG = MainActivity.class.getSimpleName();
+    public static final int NOTIFY_ID = 1;
     public static final String ACTION_PROGRESS_CHANGED = "PROGRESS_CHANGED";
     public static final String ACTION_STATUS_CHANGED = "STATUS_CHANGED";
     public static final String ACTION_PLAY = "ACTION_PLAY";
@@ -38,7 +41,6 @@ public class PlayerService extends Service {
     public static final String ACTION_NEXT = "ACTION_NEXT";
     public static final String ACTION_EXIT = "ACTION_EXIT";
 
-    private static final int NOTIFY_ID = 1;
     private NotificationManager nm;
     private IntentFilter filter;
     private BroadcastReceiver receiver;
@@ -46,16 +48,14 @@ public class PlayerService extends Service {
     private final IBinder mBinder = new MusicBinder();
     private Messenger outMessenger;
 
-    public static final String TAG = MainActivity.class.getSimpleName();
-
     public ArrayList<Song> mPlaylist;
     public ArrayList<Song> mSourcelist;
+    public ArrayList<Integer> mQueue;
     public String searchPhrase = "";
     public int searchType = RecyclerAdapter.SEARCH_SONG;
     public int sortType = RecyclerAdapter.SORT_SONG;
     public Boolean mRepeat = false;
 
-    private ArrayList<Integer> mQueue;
     private int mCurrentPosition = RecyclerView.NO_POSITION;
     Handler handler;
     private MediaPlayer mPlayer;
@@ -69,7 +69,6 @@ public class PlayerService extends Service {
                             .putExtra("progress", progress)
                             .putExtra("remain", mPlayer.getCurrentPosition());
                     sendBroadcast(i);
-                    //
                     handler.postDelayed(this, 1000);
                     Log.d(TAG, "SERVICE updater, progress=" + progress);
                 }
@@ -200,7 +199,6 @@ public class PlayerService extends Service {
 
         registerReceiver(receiver, filter);
 
-        //showNotify("");
         //nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
         Intent notificationIntent = new Intent(this, MainActivity.class);
@@ -259,7 +257,6 @@ public class PlayerService extends Service {
                     nextTrack();
                 }
                 showNotify(mPlaylist.get(mCurrentPosition).artistTitle + " :: " + mPlaylist.get(mCurrentPosition).songTitle);
-                //onPositionChanged();
             }
         });
         mPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
@@ -272,8 +269,7 @@ public class PlayerService extends Service {
                 onPositionChanged();
                 showNotify(mPlaylist.get(mCurrentPosition).artistTitle + " :: " + mPlaylist.get(mCurrentPosition).songTitle);
                 sendBroadcastStatus();
-
-                Log.d(TAG, "SERVICE mPlayer.onPrepared");
+                //Log.d(TAG, "SERVICE mPlayer.onPrepared");
             }
         });
 
@@ -295,7 +291,6 @@ public class PlayerService extends Service {
 
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "SERVICE onStartCommand");
-        //Toast.makeText(this, "service onStartCommand", Toast.LENGTH_SHORT).show();
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -318,11 +313,13 @@ public class PlayerService extends Service {
 
 
     public void seekTo(int position) {
-        if (mPlayer != null && mPlayer.isPlaying()) {
-            int duration = mPlayer.getDuration();
-            int msec = (int)((float)duration * (float)((float)position/100F));
-            mPlayer.seekTo(msec);
-            Log.d(TAG, "SERVICE seekTo: " + position + " msec: " +  msec + " duration: " + duration);
+        if (mPlayer != null) {
+            if (mPlayer.isPlaying() || mPlayer.getCurrentPosition()>0) {
+                int duration = mPlayer.getDuration();
+                int msec = (int) ((float) duration * (float) ((float) position / 100F));
+                mPlayer.seekTo(msec);
+                Log.d(TAG, "SERVICE seekTo: " + position + " msec: " + msec + " duration: " + duration);
+            }
         }
     }
 
@@ -449,9 +446,14 @@ public class PlayerService extends Service {
                 } else if (pos < mQueue.size() -1) {
                     pos++;
                     nextPosition = mQueue.get(pos);
-                    for (int i = pos; i >= 0; i--) {
-                        mQueue.remove(i);
+                    if(pos == mQueue.size()-1) {
+                        mQueue.clear();
+                    } else {
+                        for (int i = 0; i < pos; i++) {
+                        mQueue.remove(0);
+                        }
                     }
+
                 }
             }
 

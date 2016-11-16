@@ -10,10 +10,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.nostra13.universalimageloader.cache.memory.impl.UsingFreqLimitedMemoryCache;
-import com.nostra13.universalimageloader.core.DisplayImageOptions;
 import com.nostra13.universalimageloader.core.ImageLoader;
-import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,11 +23,13 @@ import java.util.Comparator;
 public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHolder> {
     public static final String TAG = RecyclerAdapter.class.getSimpleName();
 
+    // todo item selector from xml
     public static final int COLOR_SELECTED = Color.GREEN;
 
     public static final int SEARCH_SONG = 0;
     public static final int SEARCH_ARTIST = 1;
     public static final int SEARCH_ALBUM = 2;
+    public static final int SEARCH_CURRENT = -1;
 
     public static final int SORT_SONG = 0;
     public static final int SORT_ARTIST = 1;
@@ -40,25 +39,107 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
 
     public static final int[] backColors = { Color.rgb(230,230,230), Color.rgb(255,255,255)};
 
-    ImageLoader imageLoader;
     private OnClickListener mOnClickListener;
     private OnQueueChangeListener mOnQueueChangeListener;
     private Context mContext;
-    public ArrayList<Song> mResultDataset;
-    public ArrayList<Song> mSourceDataset;
-    public ArrayList<Integer> mQueue;
-    public String searchPhrase = "";
-    public int searchType = SEARCH_SONG;
-    public int sortType = SORT_SONG;
-    public int mCurrentPosition = RecyclerView.NO_POSITION;
+    public ServiceData mServiceData;
     public View mSelectedItem = null;
 
+    public RecyclerAdapter(Context context, ServiceData data) {
+        if(data != null) {
+            mServiceData = data;
+        } else {
+            mServiceData = new ServiceData();
+        }
 
-    public class ViewHolder extends RecyclerView.ViewHolder {
-        public TextView mArtist;
-        public TextView mTitle;
-        public ImageView mImage;
-        public TextView mOrder;
+        mContext = context;
+    }
+
+    public interface OnClickListener {
+        void onClick(View view, Song song, int position);
+    }
+
+    public interface OnQueueChangeListener {
+        void onChange();
+    }
+
+    @Override
+    public int getItemCount() {
+        return mServiceData.getPlaylistSize();
+    }
+
+    @Override
+    public RecyclerAdapter.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        // create a new view
+        View v = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.song, parent, false);
+
+        // тут можно программно менять атрибуты лэйаута (size, margins, paddings и др.)
+        return new ViewHolder(v);
+    }
+
+    @Override
+    public void onBindViewHolder(final ViewHolder holder, final int position) {
+        Song s = mServiceData.getSong(position);
+        holder.onBind(s, position);
+    }
+
+    @Override
+    public void onAttachedToRecyclerView(RecyclerView recyclerView) {
+        super.onAttachedToRecyclerView(recyclerView);
+    }
+
+    public void setOnItemClickListener(OnClickListener l) {
+        mOnClickListener = l;
+    }
+
+    public void setCurrentPosition(int position) {
+        if(!mServiceData.isPlaylistEmpty() && (position < 0 || position >= mServiceData.getPlaylistSize())) {
+            position = 0;
+        }
+        notifyItemChanged(position);
+        notifyItemChanged(mServiceData.getCurrentPosition());
+        mServiceData.setCurrentPosition(position);
+    }
+
+    public void setServiceData(ServiceData data) {
+        mServiceData = data;
+    }
+
+    public void setOnQueueChangeListener(OnQueueChangeListener l) {
+        mOnQueueChangeListener = l;
+    }
+
+    public void addToQueue(int position) {
+        int p = mServiceData.getPositionInQueue(position);
+        if( p > RecyclerView.NO_POSITION) {
+            mServiceData.getQueue().remove(p);
+            notifyDataSetChanged();
+        } else {
+            mServiceData.getQueue().add(position);
+            notifyItemChanged(position);
+        }
+
+        if(mOnQueueChangeListener != null) {
+            mOnQueueChangeListener.onChange();
+        }
+    }
+
+    public void addSong(Song song) {
+        mServiceData.getSourcelist().add(song);
+        mServiceData.doSearch();
+        if(mOnQueueChangeListener != null) {
+            mOnQueueChangeListener.onChange();
+        }
+    }
+
+    class ViewHolder extends RecyclerView.ViewHolder {
+       private TextView mArtist;
+       private TextView mTitle;
+       private ImageView mImage;
+       private TextView mOrder;
+        private int mBoundPosition;
+        private Song mBoundSong;
 
         public ViewHolder(View v) {
             super(v);
@@ -73,20 +154,17 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
             v.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    int position = getAdapterPosition();
 
                     v.setBackgroundColor(COLOR_SELECTED);
 
-                    if(mSelectedItem!=null) {
-                        mSelectedItem.setBackgroundColor(backColors[mCurrentPosition%2]);
+                    if(mSelectedItem != null) {
+                        mSelectedItem.setBackgroundColor(backColors[mServiceData.getCurrentPosition() % 2]);
                     }
 
                     mSelectedItem = v;
                     if(mOnClickListener != null) {
-                        if (position != RecyclerView.NO_POSITION) {
-                            mOnClickListener.onClick(v, position);
-                            mCurrentPosition = position;
-                        }
+                       mOnClickListener.onClick(v, mBoundSong, mBoundPosition);
+                       mServiceData.setCurrentPosition(mBoundPosition);
                     }
                 }
             });
@@ -96,276 +174,48 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
                 public void onClick(View v) {
                     int position = (int)v.getTag();
                     addToQueue(position);
-                    Log.d(TAG, "addToQueue: " + String.valueOf(position) );
-                    //Toast.makeText(v.getContext(), "set next: " + String.valueOf(position), Toast.LENGTH_SHORT);
                 }
             });
         }
 
-    }
+        public void onBind(Song s, int position) {
+            mBoundPosition = position;
+            mBoundSong = s;
+           mTitle.setText(s.songTitle);
+           mArtist.setText(s.artistTitle);
 
+            //mImage.setImageDrawable(s.albumImage);
+            //ImageLoader.getInstance().displayImage(s.albumImage, mImage);
+            Log.d(TAG, "imageLoader uri: " + s.albumImage);
 
-    public RecyclerAdapter(Context context, ArrayList<Song> dataset) {
-        mContext = context;
-        mResultDataset = new ArrayList<>();
-        mSourceDataset = new ArrayList<>();
-
-        imageLoader = ImageLoader.getInstance(); // Получили экземпляр
-        DisplayImageOptions options = new DisplayImageOptions.Builder()
-                .showStubImage(R.drawable.android_delete)
-                .showImageOnFail(R.drawable.ipod_player_icon1)
-                .showImageForEmptyUri(R.drawable.ipod_player_icon1)
-                //.imageScaleType(ImageScaleType.EXACTLY_STRETCHED)
-                //.resetViewBeforeLoading()
-                //.cacheInMemory()
-                //.cacheOnDisc()
-                //.decodingType(ImageScaleType.EXACTLY)
-                .build();
-        ImageLoaderConfiguration config = new ImageLoaderConfiguration.Builder(context)
-                //.memoryCacheExtraOptions(480, 800) // width, height
-                //.discCacheExtraOptions(480, 800, Bitmap.CompressFormat.JPEG, 75) // width, height, compress format, quality
-                .threadPoolSize(5)
-                .threadPriority(Thread.MIN_PRIORITY + 2)
-                .denyCacheImageMultipleSizesInMemory()
-                .memoryCache(new UsingFreqLimitedMemoryCache(2 * 1024 * 1024)) // 2 Mb
-                //.discCache(new UnlimitedDiscCache(cacheDir))
-                //.discCacheFileNameGenerator(new HashCodeFileNameGenerator())
-                //.imageDownloader(new BaseImageDownloader(5 * 1000, 30 * 1000)) // connectTimeout (5 s), readTimeout (30 s)
-                .defaultDisplayImageOptions(options)
-                //.enableLogging()
-                .build();
-        imageLoader.init(config); // Проинициализировали конфигом по умолчанию
-
-        mQueue = new ArrayList<>();
-    }
-
-
-    public interface OnClickListener {
-        void onClick(View view, int position);
-    }
-
-
-    public interface OnQueueChangeListener {
-        void onChange(ArrayList<Integer> newQueue);
-
-    }
-
-    @Override
-    public int getItemCount() {
-        if(mResultDataset != null) return mResultDataset.size();
-        else return 0;
-    }
-
-    @Override
-    public RecyclerAdapter.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        // create a new view
-        View v = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.song, parent, false);
-
-        // тут можно программно менять атрибуты лэйаута (size, margins, paddings и др.)
-        ViewHolder vh = new ViewHolder(v);
-        return vh;
-    }
-
-    @Override
-    public void onBindViewHolder(final ViewHolder holder, final int position) {
-        Song s = mResultDataset.get(position);
-
-        holder.mTitle.setText(s.songTitle);
-        holder.mArtist.setText(s.artistTitle);
-
-        //holder.mImage.setImageDrawable(s.albumImage);
-        imageLoader.displayImage(s.albumImage, holder.mImage);
-        Log.d(TAG, "imageLoader uri: " + s.albumImage);
-
-        holder.mOrder.setTag(position);
-        String orderText = "";
-        int pos = positionInQueue(position);
-        if(pos != RecyclerView.NO_POSITION) {
-            orderText = String.valueOf(pos+1);
-        }
-        holder.mOrder.setText(orderText);
-
-        holder.itemView.setBackgroundColor(getBackgroundItemColor(position));
-        int aPos = holder.getAdapterPosition();
-        //Log.d(TAG, "onBindViewHolder getAdapterPosition: " + aPos + " position: " + position);
-    }
-
-    @Override
-    public void onAttachedToRecyclerView(RecyclerView recyclerView) {
-        super.onAttachedToRecyclerView(recyclerView);
-    }
-
-
-    public int getBackgroundItemColor(int position) {
-        int color;
-
-        if(getCurrentPosition() == position) {
-            color = COLOR_SELECTED;
-        } else {
-            color =  backColors[position%2];
-        }
-
-        return color;
-    }
-
-
-    public void setOnItemClickListener(OnClickListener l) {
-        mOnClickListener = l;
-    }
-
-
-    public Song getSong(int position) {
-        return mResultDataset.get(position);
-    }
-
-
-    public int getCurrentPosition() {
-        return mCurrentPosition;
-    }
-
-
-    public void setCurrentPosition(int position) {
-        if((mResultDataset.size() > 0) && (position < 0 || position >= mResultDataset.size())) {
-            position = 0;
-        }
-        if(position > RecyclerView.NO_POSITION && position < mResultDataset.size()){
-            notifyItemChanged(position);
-            notifyItemChanged(mCurrentPosition);
-        }
-        mCurrentPosition = position;
-    }
-
-
-    public ArrayList<Integer> getQueue() {
-        return mQueue;
-    }
-
-
-    public ArrayList<Song> getPlaylist() {
-        return mResultDataset;
-    }
-
-
-    public void setPlaylist(ArrayList<Song> list) {
-        mResultDataset = list;
-        if(list != null  &&  list.size() > 0) {
-            setCurrentPosition(0);
-        }
-        //doSearch();
-        //doSort();
-        //notifyDataSetChanged();
-    }
-
-
-    public void setQueue(ArrayList<Integer> queue) {
-        for (int i = 0; i < queue.size(); i++) {
-            Log.d(TAG, "QUEUE: " + queue.get(i));
-        }
-        mQueue = queue;
-        notifyDataSetChanged();
-    }
-
-
-    public void setOnQueueChangeListener(OnQueueChangeListener l) {
-        mOnQueueChangeListener = l;
-    }
-
-
-    public void addToQueue(int position) {
-        int p = positionInQueue(position);
-        if( p > RecyclerView.NO_POSITION) {
-            mQueue.remove(p);
-            notifyDataSetChanged();
-        } else {
-            mQueue.add(position);
-            notifyItemChanged(position);
-        }
-
-        if(mOnQueueChangeListener != null) {
-            mOnQueueChangeListener.onChange(mQueue);
-        }
-    }
-
-
-    public int positionInQueue(int position) {
-        int p=RecyclerView.NO_POSITION;
-        for (int i = 0; i < mQueue.size(); i++) {
-            if(mQueue.get(i).equals(position)){
-                p = i;
-                break;
+            mOrder.setTag(position);
+            String orderText = "";
+            int pos = mServiceData.getPositionInQueue(position);
+            if(pos != RecyclerView.NO_POSITION) {
+                orderText = String.valueOf(pos+1);
             }
+            mOrder.setText(orderText);
+
+            itemView.setBackgroundColor(getBackgroundItemColor(position));
         }
-        Log.d(TAG, "Position in PlayList:" + position + "; in Queue:" + p);
-        return p;
-    }
 
-
-    public void addSong(Song song) {
-        mSourceDataset.add(song);
-        doSearch();
-    }
-
-
-    public void doSearch() {
-        Log.d(TAG, "doSearch");
-        //setCurrentPosition(0);
-        ArrayList<Song> searchResult = new ArrayList<>();
-        String searchField = null;
-        for (int i = 0; i < mSourceDataset.size(); i++) {
-            switch (searchType) {
-                case SEARCH_SONG:
-                    searchField = mSourceDataset.get(i).songTitle;
-                    break;
-                case SEARCH_ARTIST:
-                    searchField = mSourceDataset.get(i).artistTitle;
-                    break;
-                case SEARCH_ALBUM:
-                    searchField = mSourceDataset.get(i).songTitle;
-                    break;
-            }
-            searchField = searchField.toLowerCase();
-            if(searchPhrase.equals("") || (searchField!=null && searchField.contains(searchPhrase.toLowerCase()))) {
-                searchResult.add(mSourceDataset.get(i));
-            }
+        public void setSelected(boolean selected) {
+            // todo handle selection;
         }
-        mResultDataset = searchResult;
-        doSort();
-    }
 
 
-    public void doSort() {
-        Log.d(TAG, "doSort");
-        Collections.sort(mResultDataset,new Comparator<Song>() {
-            @Override
-            public int compare(Song o1, Song o2) {
-                int result = 0;
-                switch (sortType) {
-                    case SORT_SONG:
-                        result = o1.songTitle.compareToIgnoreCase(o2.songTitle);
-                        break;
-                    case SORT_ARTIST:
-                        result = o1.artistTitle.compareToIgnoreCase(o2.artistTitle);
-                        break;
-                    case SORT_ALBUM:
-                        result = o1.albumTitle.compareToIgnoreCase(o2.albumTitle);
-                        break;
-//                    case SORT_DURATION:
-//                        result = o1.songDuration.compareToIgnoreCase(o2.songDuration);
-//                        break;
-//                    case SORT_DATE:
-//                        result = o1.songDate.compareToIgnoreCase(o2.songDate);
-//                        break;
-                }
-                return result;
+        public int getBackgroundItemColor(int position) {
+            int color;
+
+            if(mServiceData.getCurrentPosition() == position) {
+                color = COLOR_SELECTED;
+            } else {
+                color =  backColors[position%2];
             }
-        });
-        mQueue = new ArrayList<>();
-        mOnQueueChangeListener.onChange(mQueue);
-        //notifyDataSetChanged();
+
+            return color;
+        }
     }
-
-
 
 
 

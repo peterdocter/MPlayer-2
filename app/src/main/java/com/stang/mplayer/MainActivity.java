@@ -9,24 +9,20 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.database.Cursor;
-import android.graphics.Bitmap;
-import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.provider.MediaStore;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.SearchView;
@@ -36,87 +32,115 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.nostra13.universalimageloader.core.ImageLoader;
-import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
 
-import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener{
+public class MainActivity extends AppCompatActivity {
     public static final String TAG = MainActivity.class.getSimpleName();
     public static final int FILE_SELECT_CODE = 1;
 
     PlayerService mPlayerService;
+    ServiceData mServiceData;
     Intent mServiceIntent;
-    private BroadcastReceiver receiver;
-    private IntentFilter filter;
+    private BroadcastReceiver mReceiver;
+    private IntentFilter mFilter;
 
     private RecyclerAdapter mAdapter;
 
-    private int playlistPosition = RecyclerView.NO_POSITION;
-
-    LinearLayoutManager mLayoutManager;
+    private LinearLayoutManager mLayoutManager;
     ImageButton prevButton;
     ImageButton nextButton;
     ImageButton pauseButton;
     ImageButton repeatButton;
-    Button addButton;
-    Button addFolderButton;
-    Button deleteButton;
-    Button clearButton;
     SearchView searchView;
     Spinner searchSpinner;
     Spinner sortSpinner;
     ImageView albumImage;
     TextView artistTitle;
     TextView songTitle;
-    RecyclerView mPlaylist;
+    RecyclerView mPlaylistView;
     SeekBar seekBar;
     TextView duration;
     TextView remain;
 
 
+    //////////////////////////////////////////// LISTENERS AREA
+    private View.OnClickListener mControlClickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            switch (v.getId()) {
+                case R.id.button_pause:
+                    pause();
+                    break;
+                case R.id.button_prev:
+                    onPrevTrackClick();
+                    break;
+
+                case R.id.button_next:
+                    nextTrack();
+                    break;
+
+                case R.id.button_repeat:
+                    if (mServiceData.getRepeat()) {
+                        repeatButton.setImageResource(android.R.drawable.btn_star_big_off);
+                        mServiceData.setRepeat(false);
+                    } else {
+                        repeatButton.setImageResource(android.R.drawable.btn_star_big_on);
+                        mServiceData.setRepeat(true);
+                    }
+                    break;
+
+//            case R.id.button_addFile:
+//                addFiles();
+//                break;
+//
+//            case R.id.button_addFolder:
+//                addFolder();
+//                break;
+
+            }
+        }
+    };
+
+    private SeekBar.OnSeekBarChangeListener mSeekBarChangeListener = new SeekBar.OnSeekBarChangeListener() {
+        @Override
+        public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+        }
+
+        @Override
+        public void onStartTrackingTouch(SeekBar seekBar) {
+        }
+
+        @Override
+        public void onStopTrackingTouch(SeekBar seekBar) {
+            seekTo(seekBar.getProgress());
+        }
+    };
+
+    //////////////////////////////////////////// LISTENERS AREA END
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(TAG,"OnCreate start");
         getSupportActionBar().hide();
         setContentView(R.layout.activity_main);
 
-        mPlaylist = (RecyclerView) findViewById(R.id.listView_playlist);
+        mPlaylistView = (RecyclerView) findViewById(R.id.listView_playlist);
 
         seekBar = (SeekBar) findViewById(R.id.seekBar);
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                if(mPlayerService != null ){
-                    mPlayerService.seekTo(seekBar.getProgress());
-                }
-            }
-        });
+        seekBar.setOnSeekBarChangeListener(mSeekBarChangeListener);
 
         prevButton = (ImageButton) findViewById(R.id.button_prev);
         nextButton = (ImageButton) findViewById(R.id.button_next);
         pauseButton = (ImageButton) findViewById(R.id.button_pause);
         repeatButton = (ImageButton) findViewById(R.id.button_repeat);
-        //addButton = (Button) findViewById(R.id.button_addFile);
-        //addFolderButton = (Button) findViewById(R.id.button_addFolder);
-        //deleteButton = (Button) findViewById(R.id.button_delete);
-        //clearButton = (Button) findViewById(R.id.button_clear);
         searchView = (SearchView) findViewById(R.id.searchView);
         searchSpinner = (Spinner) findViewById(R.id.spinner_search);
         sortSpinner = (Spinner) findViewById(R.id.spinner_sort);
-
 
         albumImage = (ImageView) findViewById(R.id.imageView_album);
         artistTitle = (TextView) findViewById(R.id.textView_artistTitle);
@@ -124,44 +148,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         duration = (TextView) findViewById(R.id.textView_duration);
         remain = (TextView) findViewById(R.id.textView_remain);
 
-
-        prevButton.setOnClickListener(this);
-        prevButton.setImageResource(android.R.drawable.ic_media_previous);
-        nextButton.setOnClickListener(this);
-        nextButton.setImageResource(android.R.drawable.ic_media_next);
-        pauseButton.setOnClickListener(this);
-        pauseButton.setImageResource(android.R.drawable.ic_media_play);
-        repeatButton.setOnClickListener(this);
-        repeatButton.setImageResource(android.R.drawable.btn_radio);
-        //addButton.setOnClickListener(this);
-        //addFolderButton.setOnClickListener(this);
-        //deleteButton.setOnClickListener(this);
-        //clearButton.setOnClickListener(this);
-
+        prevButton.setOnClickListener(mControlClickListener);
+        nextButton.setOnClickListener(mControlClickListener);
+        pauseButton.setOnClickListener(mControlClickListener);
+        repeatButton.setOnClickListener(mControlClickListener);
 
         mLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
-        mPlaylist.setLayoutManager(mLayoutManager);
+        mPlaylistView.setLayoutManager(mLayoutManager);
 
 
         //PLAYLIST Adapter
         //-------------------------------------
-        mAdapter = new RecyclerAdapter(this, null);
+        mAdapter = new RecyclerAdapter(MainActivity.this, null);
         mAdapter.setOnItemClickListener(new RecyclerAdapter.OnClickListener() {
             @Override
-            public void onClick(View view, int position) {
+            public void onClick(View view, Song song, int position) {
                 play(position);
-                Log.d(TAG,"playlist OnClick position=" + position + " Song=" + mAdapter.getSong(position).fileName);
+                Log.d(TAG,"playlist OnClick position=" + position + " Song=" + song.fileName);
             }
         });
-        mAdapter.setOnQueueChangeListener(new RecyclerAdapter.OnQueueChangeListener() {
-            @Override
-            public void onChange(ArrayList<Integer> newQueue) {
-                if(mPlayerService != null) {
-                    //mPlayerService.setQueue(newQueue);
-                }
-            }
-        });
-        mPlaylist.setAdapter(mAdapter);
+
+        mPlaylistView.setAdapter(mAdapter);
 
         // SEARCH SPINNER
         //--------------------------------------
@@ -176,11 +183,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     @Override
                     public void onItemSelected(AdapterView<?> parent, View view,
                                                int position, long id) {
-                        if(mAdapter.searchType!=position) {
-                            mAdapter.searchType = position;
-                            mAdapter.doSearch();
-                            onPlaylistChanged();
-                        }
+                        mServiceData.setSearchType(position);
+                        mServiceData.doSearch();
+                        onPlaylistChanged();
                     }
                     @Override
                     public void onNothingSelected(AdapterView<?> arg0) {
@@ -199,9 +204,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     @Override
                     public void onItemSelected(AdapterView<?> parent, View view,
                                                int position, long id) {
-                        if(mAdapter.sortType!=position) {
-                            mAdapter.sortType = position;
-                            mAdapter.doSort();
+                        if(mServiceData.getSortType() != position) {
+                            mServiceData.setSortType(position);
+                            mServiceData.doSort();
                             onPlaylistChanged();
                         }
                     }
@@ -216,25 +221,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         searchView.setOnQueryTextFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
-                //Toast.makeText(getBaseContext(), String.valueOf(hasFocus), Toast.LENGTH_SHORT).show();
             }
         });
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
                 //Toast.makeText(getBaseContext(), query, Toast.LENGTH_SHORT).show();
-                if(!mAdapter.searchPhrase.equalsIgnoreCase(query)) {
-                    mAdapter.searchPhrase = query;
-                    mAdapter.doSearch();
+                if(!mServiceData.getSearchPhrase().equalsIgnoreCase(query)) {
+                    mServiceData.setSearchPhrase(query);
+                    mServiceData.doSearch();
                     onPlaylistChanged();
                 }
                 return false;
             }
             @Override
             public boolean onQueryTextChange(String newText) {
-                if(!mAdapter.searchPhrase.equalsIgnoreCase(newText)) {
-                    mAdapter.searchPhrase = newText;
-                    mAdapter.doSearch();
+                if(!mServiceData.getSearchPhrase().equalsIgnoreCase(newText)) {
+                    mServiceData.setSearchPhrase(newText);
+                    mServiceData.doSearch();
                     onPlaylistChanged();
                 }
                 return false;
@@ -244,44 +248,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         //Broadcast Receiver
         //---------------------------------------------------
-        filter = new IntentFilter();
-        filter.addAction(PlayerService.ACTION_PROGRESS_CHANGED);
-        filter.addAction(PlayerService.ACTION_STATUS_CHANGED);
-        filter.addAction(PlayerService.ACTION_EXIT);
-
-        receiver = new BroadcastReceiver() {
+        mFilter = new IntentFilter();
+        mFilter.addAction(PlayerService.ACTION_PROGRESS_CHANGED);
+        mFilter.addAction(PlayerService.ACTION_STATE_CHANGED);
+        mFilter.addAction(PlayerService.ACTION_EXIT);
+        mReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
-                Log.d(TAG, "ACTIVITY receiver action=" + action);
                 switch (action){
                     case PlayerService.ACTION_PROGRESS_CHANGED :
-                        seekBar.setProgress(Integer.valueOf(intent.getIntExtra("progress", 0)));
-                        remain.setText(String.valueOf(intent.getIntExtra("remain", 0)));
+                        onProgressChanged(intent);
                         break;
-                    case PlayerService.ACTION_STATUS_CHANGED :
-                        int position  = intent.getIntExtra("position", -1);
-                        int dur = intent.getIntExtra("duration", 0);
-                        if (position > -1) {
-                            Song song = ((RecyclerAdapter)mPlaylist.getAdapter()).getSong(position);
-                            songTitle.setText(song.songTitle);
-                            artistTitle.setText(song.artistTitle);
-
-                            //albumImage.setImageDrawable(song.albumImage);
-                            mAdapter.imageLoader.displayImage(song.albumImage, albumImage);
-
-                            duration.setText(intToTime(dur));
-                            //remain.setText("");
-                            mAdapter.setCurrentPosition(position);
-                            mPlaylist.scrollToPosition(position);
-                            mAdapter.notifyDataSetChanged();
-                            if(mPlayerService.isPlaying()) {
-                                pauseButton.setImageResource(android.R.drawable.ic_media_pause);
-                            } else {
-                                pauseButton.setImageResource(android.R.drawable.ic_media_play);
-                            }
-
-                        }
+                    case PlayerService.ACTION_STATE_CHANGED:
+                        onStateChanged(intent);
                         break;
                     case PlayerService.ACTION_EXIT :
                         killService();
@@ -296,59 +276,65 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Log.d(TAG,"OnCreate finish");
     }
 
+    public void onProgressChanged(Intent intent){
+        seekBar.setProgress(intent.getIntExtra("progress", 0));
+        remain.setText(intToTime(intent.getIntExtra("remain", 0)));
+    }
+
+
+    public void onStateChanged(Intent intent) {
+        int position  = intent.getIntExtra("position", -1);
+        int dur = intent.getIntExtra("duration", 0);
+        if (position > -1) {
+            mServiceData.setCurrentPosition(position);
+            Song song = mServiceData.getSong(position);
+            songTitle.setText(song.songTitle);
+            artistTitle.setText(song.artistTitle);
+            duration.setText(intToTime(dur));
+            ImageLoader.getInstance().displayImage(song.albumImage, albumImage);
+            mPlaylistView.scrollToPosition(position);
+            mAdapter.notifyDataSetChanged();
+            pauseButton.setSelected(!mPlayerService.isPlaying());
+        }
+    }
+
 
     public ServiceConnection myConnection = new ServiceConnection() {
 
         public void onServiceConnected(ComponentName className, IBinder binder) {
             mPlayerService = ((PlayerService.MusicBinder) binder).getService();
             Log.d(TAG, "ServiceConnection " + "connected");
-            //
-            mAdapter.mSourceDataset = mPlayerService.mSourcelist;
-            mAdapter.mResultDataset = mPlayerService.getPlaylist();
-            if(mAdapter.mSourceDataset.size() == 0) {
-                //list = getPlayListFromURI(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI);
-                //mPlayerService.setPlayList(list);
-                addFolder();
-            }
-            //mAdapter.setPlaylist(list);
-            mAdapter.setQueue(mPlayerService.getQueue());
-            mAdapter.setCurrentPosition(mPlayerService.getCurrentPosition());
-            mAdapter.sortType = mPlayerService.sortType;
-            mAdapter.searchType = mPlayerService.searchType;
-            mAdapter.searchPhrase = mPlayerService.searchPhrase;
-            searchSpinner.setSelection(mPlayerService.searchType);
-            searchSpinner.invalidate();
-            searchView.setQuery(mPlayerService.searchPhrase, false);
-            searchView.invalidate();
-            Log.d(TAG, "onServiceConnected currentPosition = " + mAdapter.getCurrentPosition());
+            mServiceData = mPlayerService.getServiceData();
+            mAdapter.setServiceData(mServiceData);
 
-            if (mAdapter.getCurrentPosition() > -1) {
-                Song song = mAdapter.getPlaylist().get(mAdapter.getCurrentPosition());
+            if(mServiceData.isSourceListEmpty()) {
+                addFolder();
+            } else {
+
+            }
+            searchSpinner.setSelection(mServiceData.getSearchType());
+            searchView.setQuery(mServiceData.getSearchPhrase(), false);
+
+            Log.d(TAG, "onServiceConnected currentPosition = " + mServiceData.getCurrentPosition());
+
+            if (!mServiceData.isPlaylistEmpty()) {
+                Song song = mServiceData.getCurrentSong();
                 songTitle.setText(song.songTitle);
                 artistTitle.setText(song.artistTitle);
-                //albumImage.setImageDrawable(song.albumImage);
-                try {
-                    mAdapter.imageLoader.displayImage(song.albumImage, albumImage);
-                } catch (Exception e) {
-                    //
-                }
-                mPlaylist.scrollToPosition(mAdapter.getCurrentPosition());
-            }
-            mAdapter.notifyDataSetChanged();
-
-            if(mPlayerService.isPlaying()) {
-                pauseButton.setImageResource(android.R.drawable.ic_media_pause);
-            } else {
-                pauseButton.setImageResource(android.R.drawable.ic_media_play);
+                ImageLoader.getInstance().displayImage(song.albumImage, albumImage);
+                //mPlaylistView.scrollToPosition(mServiceData.getCurrentPosition());
             }
 
-            if(mPlayerService.mRepeat) {
+            pauseButton.setSelected(!mPlayerService.isPlaying());
+
+            if(mServiceData.getRepeat()) {
                 repeatButton.setImageResource(android.R.drawable.btn_star_big_on);
             } else {
                 repeatButton.setImageResource(android.R.drawable.btn_star_big_off);
             }
 
-            mPlayerService.sendBroadcastStatus();
+            //mAdapter.notifyDataSetChanged();
+            mPlayerService.sendBroadcastState();
         }
 
         public void onServiceDisconnected(ComponentName className) {
@@ -375,19 +361,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
 
+    public void seekTo(int progress) {
+        if(mPlayerService != null ){
+            mPlayerService.seekTo(progress);
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
-        registerReceiver(receiver, filter);
+        registerReceiver(mReceiver, mFilter);
         doBindService();
     }
 
 
     @Override
     protected void onPause() {
-        if(receiver != null) {
-            unregisterReceiver(receiver);
-            //receiver = null;
+        if(mReceiver != null) {
+            unregisterReceiver(mReceiver);
         }
 
         if(mPlayerService != null){
@@ -399,21 +390,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     protected void onDestroy() {
-        //stopService(mServiceIntent);
-        //mPlayerService = null;
         super.onDestroy();
-    }
-
-
-    private void showPlayerStatus(){
-        int position  = mPlayerService.getCurrentPosition();
-        if (position > -1) {
-            Song song = mPlayerService.getPlaylist().get(position);
-            songTitle.setText(song.songTitle);
-            artistTitle.setText(song.artistTitle);
-            //albumImage.setImageDrawable(song.albumImage);
-            mAdapter.imageLoader.displayImage(song.albumImage, albumImage);
-        }
     }
 
 
@@ -423,51 +400,37 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mPlayerService.play(position);
         }
         mAdapter.setCurrentPosition(position);
-        Song song = mAdapter.getSong(position);
-        Log.d(TAG, "play " + song.songTitle);
+//        Log.d(TAG, "play " + mAdapter.getSong(position));
     }
 
 
     public void pause() {
         if(mPlayerService != null) {
             mPlayerService.pause();
-            if(mPlayerService.isPlaying()) {
-                pauseButton.setImageResource(android.R.drawable.ic_media_pause);
-            } else {
-                pauseButton.setImageResource(android.R.drawable.ic_media_play);
-            }
+            //pauseButton.setSelected(mPlayerService.isPlaying() ? false : true);
+            pauseButton.setSelected(!mPlayerService.isPlaying());
         }
     }
 
 
     public void onPlaylistChanged() {
-        mPlayerService.setPlayList(mAdapter.getPlaylist());
-        mPlayerService.setQueue(mAdapter.getQueue());
-        mPlayerService.setCurrentPosition(mAdapter.getCurrentPosition());
+        mPlaylistView.scrollToPosition(mServiceData.getCurrentPosition());
         mAdapter.notifyDataSetChanged();
-        mPlaylist.scrollToPosition(mAdapter.getCurrentPosition());
-        mPlayerService.mSourcelist = mAdapter.mSourceDataset;
-        mPlayerService.sortType = mAdapter.sortType;
-        mPlayerService.searchType = mAdapter.searchType;
-        mPlayerService.searchPhrase = mAdapter.searchPhrase;
     }
 
 
     public String intToTime(int time) {
-        time = time / 1000;
-        int min = time/60;
-        int sec = (time % 60);
-        //DecimalFormat df = new DecimalFormat("#:##");
-        Log.d(TAG, "intToTime: " + time + ", " + min + " " + sec);
-        return String.format("%d:%2d", min, sec);
-        //return df.format();
+        SimpleDateFormat df = new SimpleDateFormat("m:ss");
+        return df.format(new Date(time));
+//        time = time / 1000;
+//        int min = time/60;
+//        int sec = (time % 60);
+//        return String.format("%d:%02d", min, sec);
     }
 
 
     public ArrayList<Song> getPlayListFromURI(Uri uri){
-        Log.d(TAG, "getPlayListFromURI");
         ArrayList<Song> songs =new ArrayList<>();
-        //Uri uri = android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
 
         ContentResolver contentResolver = getContentResolver();
         Cursor cursor = contentResolver.query(uri, null, null, null, null);
@@ -476,85 +439,36 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else if (!cursor.moveToFirst()) {
             // no media on the device
         } else {
-            int titleColumn = cursor
-                    .getColumnIndex(android.provider.MediaStore.Audio.Media.TITLE);
-            int artistColumn = cursor
-                    .getColumnIndex(MediaStore.Audio.Media.ARTIST);
-            int idColumn = cursor
-                    .getColumnIndex(android.provider.MediaStore.Audio.Media._ID);
-//            int contentTypeColumn = cursor
-//                    .getColumnIndexOrThrow(MediaStore.Audio.Media.CONTENT_TYPE);
-            int durationColumn = cursor
-                    .getColumnIndex(MediaStore.Audio.Media.DURATION);
-            int displayNameColumn = cursor
-                    .getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME);
-            int filenameColumn = cursor
-                    .getColumnIndex(MediaStore.Audio.Media.DATA);
-            int albumColumn = cursor
-                    .getColumnIndex(MediaStore.Audio.Media.ALBUM);
-            int albumId = cursor
-                    .getColumnIndex(MediaStore.Audio.Media.ALBUM_ID);
 
             do {
-                long id = cursor.getLong(idColumn);
-                String title = cursor.getString(titleColumn);
-                String artist = cursor.getString(artistColumn);
-                String album = cursor.getString(albumColumn);
-                String filename = "file://" + cursor.getString(filenameColumn);
-                String duration = cursor.getString(durationColumn);
-
-                Uri mainAlbumArtUri = Uri.parse("content://media/external/audio/albumart");
-                Uri albumArtUri = ContentUris.withAppendedId(mainAlbumArtUri, albumId);
-
-                //title = "id:"+id+" "+title+" ("+duration+")";
-                songs.add(new Song(title, artist, album, String.valueOf(filename), albumArtUri.toString()));
-
-                Log.d(TAG, "getPlayListFromURI:: " + title + " filename:: " + filename);
+                songs.add(parseCursor(cursor));
             } while (cursor.moveToNext());
-            playlistPosition = 0;
+
         }
         return songs;
     }
 
+    private Song parseCursor(Cursor cursor) {
+        long id = cursor.getLong(cursor
+                .getColumnIndex(android.provider.MediaStore.Audio.Media._ID));
+        String title = cursor.getString(cursor
+                .getColumnIndex(android.provider.MediaStore.Audio.Media.TITLE));
+        String artist = cursor.getString(cursor
+                .getColumnIndex(MediaStore.Audio.Media.ARTIST));
+        String album = cursor.getString(cursor
+                .getColumnIndex(MediaStore.Audio.Media.ALBUM));
+        String filename = "file://" + cursor.getString(cursor
+                .getColumnIndex(MediaStore.Audio.Media.DATA));
+        String duration = cursor.getString(cursor
+                .getColumnIndex(MediaStore.Audio.Media.DURATION));
 
-    public void onClick(View view) {
-        switch (view.getId()) {
-
-            case R.id.button_pause:
-                pause();
-                break;
-
-            case R.id.button_prev:
-                prevTrack();
-                break;
-
-            case R.id.button_next:
-                nextTrack();
-                break;
-
-            case R.id.button_repeat:
-                if(mPlayerService.mRepeat) {
-                    repeatButton.setImageResource(android.R.drawable.btn_star_big_off);
-                    mPlayerService.mRepeat = false;
-                } else {
-                    repeatButton.setImageResource(android.R.drawable.btn_star_big_on);
-                    mPlayerService.mRepeat = true;
-                }
-                break;
-
-//            case R.id.button_addFile:
-//                addFiles();
-//                break;
-//
-//            case R.id.button_addFolder:
-//                addFolder();
-//                break;
-
-        }
+        Uri mainAlbumArtUri = Uri.parse("content://media/external/audio/albumart");
+        Uri albumArtUri = ContentUris.withAppendedId(mainAlbumArtUri, cursor
+                .getColumnIndex(MediaStore.Audio.Media.ALBUM_ID));
+        return new Song(title, artist, album, String.valueOf(filename), albumArtUri.toString());
     }
 
-
-    public void prevTrack(){
+    public void onPrevTrackClick(){
         if(mPlayerService != null) {
             mPlayerService.prevTrack();
         }
@@ -583,13 +497,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
     private void addFolder(){
-
-        mAdapter.mSourceDataset = getPlayListFromURI(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI);
-        mAdapter.sortType = RecyclerAdapter.SORT_SONG;
-        mAdapter.searchType = RecyclerAdapter.SEARCH_SONG;
-        mAdapter.searchPhrase = "";
-        mAdapter.setPlaylist(new ArrayList<Song>(mAdapter.mSourceDataset));
-        //mAdapter.notifyDataSetChanged();
+        mServiceData.setSourceList(
+                getPlayListFromURI(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI));
         onPlaylistChanged();
     }
 
@@ -606,10 +515,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == RESULT_OK) {
             if (requestCode == FILE_SELECT_CODE) {
-                String title = data.getDataString();;
-                String artist = "";
-                String album = "";
-                String albumId = "";
 
                 Uri selectedFileUri = data.getData();
                 String path = data.getDataString();
@@ -618,21 +523,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 cursor = getApplicationContext().getContentResolver().query(selectedFileUri,  null, null, null, null);
                 if(cursor != null) {
                     cursor.moveToFirst();
-                    title = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME));
-                    artist = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST));
-                    album = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM));
-                    albumId = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID));
                 }
+                mAdapter.addSong(parseCursor(cursor));
 
-                Log.e(TAG + "SELECT FILE:", title + " path:" + path + " artist: " + artist);
+                if(mServiceData.getCurrentPosition() < 0) mServiceData.setCurrentPosition(0);
 
-                mAdapter.addSong(new Song(title, artist, album, path, albumId));
-
-                if(playlistPosition < 0) playlistPosition = 0;
                 onPlaylistChanged();
-
-                mAdapter.notifyDataSetChanged();
-
             }
         }
     }

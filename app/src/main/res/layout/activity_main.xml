@@ -95,6 +95,7 @@
                 android:layout_height="wrap_content"
                 android:id="@+id/button_prev"
                 android:layout_weight="1"
+                android:src="@android:drawable/ic_media_previous"
                 android:elevation="0dp" />
 
             <ImageButton
@@ -102,18 +103,21 @@
                 android:layout_height="wrap_content"
                 android:id="@+id/button_pause"
                 android:layout_weight="1"
+                android:src="@drawable/play_pause_selector"
                 android:textSize="13sp" />
 
             <ImageButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/button_next"
+                android:src="@android:drawable/ic_media_next"
                 android:layout_weight="1" />
 
             <ImageButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/button_repeat"
+                android:src="@android:drawable/btn_star_big_off"
                 android:layout_weight="1" />
         </LinearLayout>
 
@@ -143,7 +147,8 @@
             <Spinner
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:id="@+id/spinner_search" />
+                android:id="@+id/spinner_search"
+                android:contentDescription="@string/search_prompt"/>
         </LinearLayout>
 
         <Spinner
@@ -151,7 +156,9 @@
             android:layout_height="wrap_content"
             android:id="@+id/spinner_sort"
             android:layout_gravity="right"
-            android:layout_weight="0.11" />
+            android:layout_weight="0.11"
+            android:contentDescription="@string/sort_prompt"
+        />
 
     </LinearLayout>
 </RelativeLayout>

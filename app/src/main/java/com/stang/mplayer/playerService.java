@@ -10,7 +10,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.graphics.BitmapFactory;
-import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
@@ -24,9 +23,6 @@ import android.os.PowerManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-
 /**
  * Created by Stanislav on 25.10.2016.
  */
@@ -34,43 +30,34 @@ import java.util.Arrays;
 public class PlayerService extends Service {
     public static final String TAG = MainActivity.class.getSimpleName();
     public static final int NOTIFY_ID = 1;
+    public static final int UPDATER_DELAY = 1000;
+    public static final int REQUEST_CODE = 5;
     public static final String ACTION_PROGRESS_CHANGED = "PROGRESS_CHANGED";
-    public static final String ACTION_STATUS_CHANGED = "STATUS_CHANGED";
+    public static final String ACTION_STATE_CHANGED = "STATE_CHANGED";
     public static final String ACTION_PLAY = "ACTION_PLAY";
     public static final String ACTION_PREV = "ACTION_PREV";
     public static final String ACTION_NEXT = "ACTION_NEXT";
     public static final String ACTION_EXIT = "ACTION_EXIT";
 
-    private NotificationManager nm;
-    private IntentFilter filter;
-    private BroadcastReceiver receiver;
+    private NotificationManager mNotificationManager;
+    private IntentFilter mIntentFilter;
+    private BroadcastReceiver mReceiver;
 
     private final IBinder mBinder = new MusicBinder();
     private Messenger outMessenger;
 
-    public ArrayList<Song> mPlaylist;
-    public ArrayList<Song> mSourcelist;
-    public ArrayList<Integer> mQueue;
-    public String searchPhrase = "";
-    public int searchType = RecyclerAdapter.SEARCH_SONG;
-    public int sortType = RecyclerAdapter.SORT_SONG;
-    public Boolean mRepeat = false;
+    private ServiceData mServiceData = new ServiceData();
 
-    private int mCurrentPosition = RecyclerView.NO_POSITION;
-    Handler handler;
-    private MediaPlayer mPlayer;
+    private Handler mHandler = new Handler();
+    private MediaPlayer mPlayer = new MediaPlayer();
 
-    private final Runnable updater = new Runnable(){
+    // todo implement with messages
+    private final Runnable mUpdater = new Runnable(){
         public void run(){
             try {
-                if(mPlayer != null && mPlayer.isPlaying()){
-                    int progress =  (mPlayer.getCurrentPosition() * 100 / mPlayer.getDuration());
-                    Intent i = new Intent(PlayerService.ACTION_PROGRESS_CHANGED)
-                            .putExtra("progress", progress)
-                            .putExtra("remain", mPlayer.getCurrentPosition());
-                    sendBroadcast(i);
-                    handler.postDelayed(this, 1000);
-                    Log.d(TAG, "SERVICE updater, progress=" + progress);
+                if((mPlayer != null) && mPlayer.isPlaying()){
+                    sendBroadcastProgress();
+                    mHandler.postDelayed(this, UPDATER_DELAY);
                 }
             }
             catch (Exception e) {
@@ -79,63 +66,17 @@ public class PlayerService extends Service {
         }
     };
 
-    public int getCurrentPosition() {
-        return mCurrentPosition;
+
+    public ServiceData getServiceData() {
+        return mServiceData;
     }
 
-
-    public int getPositionInQueue(int position) {
-        int p=RecyclerView.NO_POSITION;
-        for (int i = 0; i < mQueue.size(); i++) {
-            if(mQueue.get(i).equals(position)){
-                p = i;
-                break;
-            }
-        }
-        Log.d(TAG, "Position in Playlist:" + position + " Position in Queue: " + p);
-        return p;
-    }
-
-
-    public ArrayList<Song> getPlaylist() {
-        return mPlaylist;
-    }
-
-
-    public void setPlayList(ArrayList<Song> list) {
-        mPlaylist = list;
-    }
-
-    public ArrayList<Song> getSourcelist() {
-        return mSourcelist;
-    }
-
-
-    public void setSourceList(ArrayList<Song> list) {
-        mSourcelist = list;
-    }
-
-
-    public void setQueue(ArrayList<Integer> queue) {
-        mQueue = new ArrayList<Integer>(queue);
-    }
-
-
-    public ArrayList<Integer> getQueue() {
-        return mQueue;
-    }
-
-
-    public void setCurrentPosition(int position) {
-        mCurrentPosition = position;
+    public void setServiceData(ServiceData data) {
+        mServiceData = data;
     }
 
     public boolean isPlaying() {
-        if(mPlayer != null) {
-            return mPlayer.isPlaying();
-        } else {
-            return false;
-        }
+        return ((mPlayer != null) && mPlayer.isPlaying());
     }
 
     @Override
@@ -148,11 +89,10 @@ public class PlayerService extends Service {
             outMessenger = (Messenger) extras.get("MESSENGER");
         }
 
-        sendBroadcastStatus();
+        sendBroadcastState();
 
         return mBinder;
     }
-
 
     public class MusicBinder extends Binder {
         PlayerService getService() {
@@ -163,26 +103,21 @@ public class PlayerService extends Service {
 
     public void onCreate() {
         super.onCreate();
-        Log.d(TAG, "onCreate SERVICE");
-        mCurrentPosition = RecyclerView.NO_POSITION;
-        mPlayer = new MediaPlayer();
-        handler = new Handler();
-        mQueue = new ArrayList<>();
-        mPlaylist = new ArrayList<>();
-        mSourcelist = new ArrayList<>();
+        //Log.d(TAG, "onCreate SERVICE");
+        mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
         initPlayer();
 
-        filter = new IntentFilter();
-        filter.addAction(PlayerService.ACTION_PLAY);
-        filter.addAction(PlayerService.ACTION_NEXT);
-        filter.addAction(PlayerService.ACTION_EXIT);
+        mIntentFilter = new IntentFilter();
+        mIntentFilter.addAction(PlayerService.ACTION_PLAY);
+        mIntentFilter.addAction(PlayerService.ACTION_NEXT);
+        mIntentFilter.addAction(PlayerService.ACTION_EXIT);
 
-        receiver = new BroadcastReceiver() {
+        mReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
-                Log.d(TAG, "SERVICE receiver action=" + action);
+                Log.d(TAG, "SERVICE mReceiver action=" + action);
                 switch (action){
                     case PlayerService.ACTION_EXIT :
                         stopSelf();
@@ -197,10 +132,202 @@ public class PlayerService extends Service {
             }
         };
 
-        registerReceiver(receiver, filter);
+        registerReceiver(mReceiver, mIntentFilter);
 
-        //nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        startForeground(NOTIFY_ID, getEmptyNotification());
+        //stopForeground(true);
+    }
 
+
+    public void initPlayer() {
+        mPlayer.setWakeMode(getApplicationContext(),
+                PowerManager.PARTIAL_WAKE_LOCK);
+        mPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+        mPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                if(mServiceData.getRepeat()) {
+                    play(mServiceData.getCurrentPosition());
+                } else {
+                    nextTrack();
+                }
+                showNotify();
+            }
+        });
+        mPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+            @Override
+            public void onPrepared(MediaPlayer mp) {
+                mp.start();
+                mHandler.removeCallbacks(mUpdater);
+                mHandler.postDelayed(mUpdater,UPDATER_DELAY);
+                onPositionChanged();
+                showNotify();
+            }
+        });
+    }
+
+
+    public void sendBroadcastState() {
+        int duration = 0;
+        if(mPlayer != null && mPlayer.isPlaying()) {
+            duration = mPlayer.getDuration();
+        }
+
+        Intent i = new Intent(PlayerService.ACTION_STATE_CHANGED)
+                .putExtra("position", mServiceData.getCurrentPosition())
+                .putExtra("duration", duration);
+        sendBroadcast(i);
+        Log.d(TAG, "SERVICE mUpdater, position=" + mServiceData.getCurrentPosition());
+    }
+
+
+    public void sendBroadcastProgress() {
+        int progress =  (mPlayer.getCurrentPosition() * 100 / mPlayer.getDuration());
+        Intent i = new Intent(PlayerService.ACTION_PROGRESS_CHANGED)
+                .putExtra("progress", progress)
+                .putExtra("remain", mPlayer.getCurrentPosition());
+        sendBroadcast(i);
+        Log.d(TAG, "SERVICE mUpdater, progress=" + progress);
+    }
+
+
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        Log.d(TAG, "SERVICE onStartCommand");
+        return super.onStartCommand(intent, flags, startId);
+    }
+
+
+    public void onDestroy() {
+        unregisterReceiver(mReceiver);
+        mHandler.removeCallbacks(mUpdater);
+
+        if(mPlayer != null) {
+            mPlayer.reset();
+            mPlayer.release();
+        }
+
+        mNotificationManager.cancel(NOTIFY_ID);
+
+        super.onDestroy();
+        Log.d(TAG, "SERVICE onDestroy");
+    }
+
+
+    public void seekTo(int seekBarPosition) {
+        if (mPlayer != null) {
+            if (mPlayer.isPlaying() || mPlayer.getCurrentPosition()>0) {
+                int songDuration = mPlayer.getDuration();
+                int msec = (int) (songDuration * seekBarPosition / 100F);
+                mPlayer.seekTo(msec);
+            }
+        }
+    }
+
+
+    public void showNotify() {
+        //mNotificationManager.cancel(NOTIFY_ID);
+        mNotificationManager.notify(NOTIFY_ID, getNotificationWithButtons());
+    }
+
+
+    public void play(int position) {
+        mHandler.removeCallbacks(mUpdater);
+        if(position < 0 || position >= mServiceData.getPlaylistSize()) return;
+
+        mServiceData.setCurrentPosition(position);
+
+        if(mPlayer != null){
+            mPlayer.reset();
+        } else {
+            mPlayer = new MediaPlayer();
+            initPlayer();
+        }
+
+        Song song = mServiceData.getCurrentSong();
+        Uri fileUri = Uri.parse(song.fileName);
+
+        try {
+            mPlayer.setDataSource(getApplicationContext(), fileUri);
+            mPlayer.prepare();
+        } catch (Exception e) {
+            e.printStackTrace();
+            if(mPlayer != null) {
+                mPlayer.release();
+            }
+        }
+
+        Log.d(TAG, "PlayService.play() " + song.songTitle);
+    }
+
+
+    public void pause(){
+        if (mPlayer != null ){
+            if(mPlayer.isPlaying()){
+                mHandler.removeCallbacks(mUpdater);
+                mPlayer.pause();
+            } else {
+                mPlayer.start();
+                mHandler.removeCallbacks(mUpdater);
+                mHandler.postDelayed(mUpdater, UPDATER_DELAY);
+            }
+        }
+        showNotify();
+        sendBroadcastState();
+    }
+
+
+    public void nextTrack(){
+        int position = mServiceData.getCurrentPosition();
+        int nextPosition = RecyclerView.NO_POSITION;
+
+        if(mServiceData.getQueue().size() > 0){
+            int pos = mServiceData.getPositionInQueue(position);
+            if(pos == -1) {
+                nextPosition = mServiceData.getQueue().get(0);
+                mServiceData.getQueue().remove(0);
+            } else
+            {
+                if(pos == mServiceData.getQueue().size() -1) {
+                    nextPosition = position + 1;
+                    mServiceData.getQueue().clear();
+                } else if (pos < mServiceData.getQueue().size() -1) {
+                    pos++;
+                    nextPosition = mServiceData.getQueue().get(pos);
+                    if(pos == mServiceData.getQueue().size()-1) {
+                        mServiceData.getQueue().clear();
+                    } else {
+                        for (int i = 0; i < pos; i++) {
+                        mServiceData.getQueue().remove(0);
+                        }
+                    }
+                }
+            }
+        } else {
+            nextPosition = position + 1;
+        }
+
+        if(nextPosition < mServiceData.getPlaylistSize() ){
+            play(nextPosition);
+        }
+    }
+
+
+    public void prevTrack(){
+        int pos = mServiceData.getCurrentPosition();
+        if(pos > 0 ){
+            pos--;
+            mServiceData.setCurrentPosition(pos);
+            play(pos);
+        }
+    }
+
+
+    public void onPositionChanged(){
+        sendBroadcastState();
+    }
+
+
+    private Notification getEmptyNotification() {
         Intent notificationIntent = new Intent(this, MainActivity.class);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP
                 | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -226,8 +353,6 @@ public class PlayerService extends Service {
                 //.setContentText(res.getString(R.string.notifytext))
                 .setContentText("...");
 
-
-
         Notification notification;
 
         if (Build.VERSION.SDK_INT < 16)
@@ -236,96 +361,17 @@ public class PlayerService extends Service {
             notification = builder.build();
 
         notification.flags |= Notification.FLAG_ONGOING_EVENT;
-        //nm.showNotify(NOTIFY_ID, notification);
 
-        startForeground(NOTIFY_ID, notification);
-        //stopForeground(true);
-
+        return notification;
     }
 
 
-    public void initPlayer() {
-        mPlayer.setWakeMode(getApplicationContext(),
-                PowerManager.PARTIAL_WAKE_LOCK);
-        mPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-        mPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-            @Override
-            public void onCompletion(MediaPlayer mp) {
-                if(mRepeat) {
-                    play(mCurrentPosition);
-                } else {
-                    nextTrack();
-                }
-                showNotify(mPlaylist.get(mCurrentPosition).artistTitle + " :: " + mPlaylist.get(mCurrentPosition).songTitle);
-            }
-        });
-        mPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-            @Override
-            public void onPrepared(MediaPlayer mp) {
-                mPlayer.start();
-                handler.removeCallbacks(updater);
-                handler.postDelayed(updater,1000);
-
-                onPositionChanged();
-                showNotify(mPlaylist.get(mCurrentPosition).artistTitle + " :: " + mPlaylist.get(mCurrentPosition).songTitle);
-                sendBroadcastStatus();
-                //Log.d(TAG, "SERVICE mPlayer.onPrepared");
-            }
-        });
-
-    }
-
-
-    public void sendBroadcastStatus() {
-        int duration = 0;
-        if(mPlayer!=null && mPlayer.isPlaying()) {
-            duration = mPlayer.getDuration();
+    private Notification getNotificationWithButtons() {
+        String text = "";
+        Song song = mServiceData.getCurrentSong();
+        if(song != null) {
+            text = song.artistTitle + " :: " + song.songTitle;
         }
-
-        Intent i = new Intent(PlayerService.ACTION_STATUS_CHANGED)
-                .putExtra("position", mCurrentPosition)
-                .putExtra("duration", duration);
-        sendBroadcast(i);
-    }
-
-
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "SERVICE onStartCommand");
-        return super.onStartCommand(intent, flags, startId);
-    }
-
-
-    public void onDestroy() {
-        unregisterReceiver(receiver);
-        handler.removeCallbacks(updater);
-
-        if(mPlayer != null) {
-            mPlayer.reset();
-            mPlayer.release();
-        }
-
-        nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        nm.cancel(NOTIFY_ID);
-
-        super.onDestroy();
-        Log.d(TAG, "SERVICE onDestroy");
-    }
-
-
-    public void seekTo(int position) {
-        if (mPlayer != null) {
-            if (mPlayer.isPlaying() || mPlayer.getCurrentPosition()>0) {
-                int duration = mPlayer.getDuration();
-                int msec = (int) ((float) duration * (float) ((float) position / 100F));
-                mPlayer.seekTo(msec);
-                Log.d(TAG, "SERVICE seekTo: " + position + " msec: " + msec + " duration: " + duration);
-            }
-        }
-    }
-
-
-    private void showNotify(String text) {
-        nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
         Intent notificationIntent = new Intent(this, MainActivity.class);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -335,9 +381,9 @@ public class PlayerService extends Service {
                 0, notificationIntent,
                 PendingIntent.FLAG_CANCEL_CURRENT);
 
-        PendingIntent pIntentPlay = PendingIntent.getBroadcast(this, 5, new Intent(PlayerService.ACTION_PLAY), PendingIntent.FLAG_UPDATE_CURRENT);
-        PendingIntent pIntentNext = PendingIntent.getBroadcast(this, 5, new Intent(PlayerService.ACTION_NEXT), PendingIntent.FLAG_UPDATE_CURRENT);
-        PendingIntent pIntentExit = PendingIntent.getBroadcast(this, 5, new Intent(PlayerService.ACTION_EXIT), PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent pIntentPlay = PendingIntent.getBroadcast(this, REQUEST_CODE, new Intent(PlayerService.ACTION_PLAY), PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent pIntentNext = PendingIntent.getBroadcast(this, REQUEST_CODE, new Intent(PlayerService.ACTION_NEXT), PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent pIntentExit = PendingIntent.getBroadcast(this, REQUEST_CODE, new Intent(PlayerService.ACTION_EXIT), PendingIntent.FLAG_UPDATE_CURRENT);
 
         Resources res = getResources();
 
@@ -366,7 +412,6 @@ public class PlayerService extends Service {
                 .addAction(android.R.drawable.ic_media_next, "", pIntentNext)
                 .addAction(android.R.drawable.ic_delete, "", pIntentExit);
 
-
         Notification notification;
 
         if (Build.VERSION.SDK_INT < 16)
@@ -376,110 +421,6 @@ public class PlayerService extends Service {
 
         notification.flags |= Notification.FLAG_ONGOING_EVENT;
 
-        //nm.cancel(NOTIFY_ID);
-        nm.notify(NOTIFY_ID, notification);
-
-    }
-
-
-    public void play(int position) {
-        if(mPlaylist==null || position < 0 || position>=mPlaylist.size()) return;
-
-        setCurrentPosition(position);
-
-        if(mPlayer != null){
-            mPlayer.reset();
-            //mPlayer.release();
-        }
-
-        //mAdapter.setCurrentPosition(position);
-        Song song = mPlaylist.get(position);
-
-        //showNotify(song.artistTitle + " :: " + song.songTitle);
-        Log.d(TAG, "PlayService.play() " + song.songTitle);
-
-        try {
-            Uri fileUri = Uri.parse(song.fileName);
-            mPlayer.setDataSource(getApplicationContext(), fileUri);
-            mPlayer.prepare();
-        } catch (Exception e) {
-            e.printStackTrace();
-            if(mPlayer!=null) {
-                mPlayer.release();
-            }
-        }
-    }
-
-
-    public void pause(){
-        if (mPlayer != null ){
-            if(mPlayer.isPlaying()){
-                mPlayer.pause();
-            } else {
-                mPlayer.start();
-                handler.postDelayed(updater, 1000);
-            }
-        }
-        showNotify(mPlaylist.get(mCurrentPosition).artistTitle + " :: " + mPlaylist.get(mCurrentPosition).songTitle);
-        Intent i = new Intent(PlayerService.ACTION_STATUS_CHANGED)
-                .putExtra("position", mCurrentPosition)
-                .putExtra("duration", mPlayer.getDuration());
-        sendBroadcast(i);
-    }
-
-
-    public void nextTrack(){
-        int position = getCurrentPosition();
-        Log.d(TAG, "currentPosition before: " + getCurrentPosition());
-        int nextPosition = RecyclerView.NO_POSITION;
-
-        if(mQueue.size() > 0){
-            int pos = getPositionInQueue(position);
-            if(pos == -1) {
-                nextPosition = mQueue.get(0);
-                mQueue.remove(0);
-            } else
-            {
-                if(pos == mQueue.size() -1) {
-                    nextPosition = position + 1;
-                    mQueue.clear();
-                } else if (pos < mQueue.size() -1) {
-                    pos++;
-                    nextPosition = mQueue.get(pos);
-                    if(pos == mQueue.size()-1) {
-                        mQueue.clear();
-                    } else {
-                        for (int i = 0; i < pos; i++) {
-                        mQueue.remove(0);
-                        }
-                    }
-
-                }
-            }
-
-        } else {
-            nextPosition = position + 1;
-        }
-
-
-        if(nextPosition < mPlaylist.size() ){
-            play(nextPosition);
-        }
-        Log.d(TAG, "currentPosition after: " + getCurrentPosition());
-    }
-
-
-    public void prevTrack(){
-        if(mCurrentPosition > 0 ){
-            play(--mCurrentPosition);
-        }
-    }
-
-
-    public void onPositionChanged(){
-        Intent i = new Intent(PlayerService.ACTION_STATUS_CHANGED)
-        .putExtra("position", getCurrentPosition())
-        .putExtra("duration", mPlayer.getDuration());
-        sendBroadcast(i);
+        return notification;
     }
 }

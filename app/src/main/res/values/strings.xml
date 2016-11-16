@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">MPlayer</string>
+    <string name="search_prompt">search</string>
+    <string name="sort_prompt">sort</string>
 </resources>

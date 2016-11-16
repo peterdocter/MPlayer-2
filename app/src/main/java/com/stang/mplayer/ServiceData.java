@@ -20,6 +20,8 @@ import static com.stang.mplayer.RecyclerAdapter.SORT_SONG;
  */
 
 public class ServiceData {
+    private static volatile ServiceData instance;
+
     private ArrayList<Song> mPlaylist = new ArrayList<>();
     private ArrayList<Song> mSourcelist = new ArrayList<>();
     private ArrayList<Integer> mQueue = new ArrayList<>();
@@ -28,6 +30,13 @@ public class ServiceData {
     private Integer mSortType = SORT_SONG;
     private Boolean mRepeat = false;
     private Integer mCurrentPosition = RecyclerView.NO_POSITION;
+
+    public static synchronized ServiceData getInstance() {
+        if( instance == null ) {
+            instance = new ServiceData();
+        }
+        return instance;
+    }
 
     public boolean isPlaylistEmpty() {
         return mPlaylist.isEmpty();

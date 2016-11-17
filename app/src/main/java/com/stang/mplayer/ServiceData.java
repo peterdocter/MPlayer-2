@@ -31,11 +31,17 @@ public class ServiceData {
     private Boolean mRepeat = false;
     private Integer mCurrentPosition = RecyclerView.NO_POSITION;
 
-    public static synchronized ServiceData getInstance() {
-        if( instance == null ) {
-            instance = new ServiceData();
+    public static ServiceData getInstance() {
+        ServiceData localInstance = instance;
+        if (localInstance == null) {
+            synchronized (ServiceData.class) {
+                localInstance = instance;
+                if (localInstance == null) {
+                    instance = localInstance = new ServiceData();
+                }
+            }
         }
-        return instance;
+        return localInstance;
     }
 
     public boolean isPlaylistEmpty() {
@@ -44,6 +50,10 @@ public class ServiceData {
 
     public boolean isSourceListEmpty() {
         return mSourcelist.isEmpty();
+    }
+
+    public boolean hasNext() {
+        return mCurrentPosition < mPlaylist.size() - 1;
     }
 
     public int getCurrentPosition() {
@@ -62,7 +72,7 @@ public class ServiceData {
     }
 
     public Song getSong(int positionInPlayList) {
-        if(positionInPlayList > -1 && positionInPlayList < mPlaylist.size()){
+        if (positionInPlayList > -1 && positionInPlayList < mPlaylist.size()) {
             return mPlaylist.get(positionInPlayList);
         } else {
             return null;
@@ -71,7 +81,7 @@ public class ServiceData {
     }
 
     public Song getCurrentSong() {
-        if(mCurrentPosition > -1) {
+        if (mCurrentPosition > -1) {
             return mPlaylist.get(mCurrentPosition);
         } else {
             return null;
@@ -89,7 +99,7 @@ public class ServiceData {
 
     public void setPlayList(ArrayList<Song> list) {
         mPlaylist = list;
-        if(mPlaylist != null && mPlaylist.size() > 0) {
+        if (mPlaylist != null && mPlaylist.size() > 0) {
             setCurrentPosition(0);
         }
     }
@@ -165,7 +175,7 @@ public class ServiceData {
                     break;
             }
 
-            if(getSearchPhrase().equals("") || (searchField != null && searchField.contains(getSearchPhrase().toLowerCase()))) {
+            if (getSearchPhrase().equals("") || (searchField != null && searchField.contains(getSearchPhrase().toLowerCase()))) {
                 searchResult.add(sourceList.get(i));
             }
         }
@@ -175,7 +185,7 @@ public class ServiceData {
 
     public void doSort() {
         Log.d(TAG, "doSort");
-        Collections.sort(getPlaylist(),new Comparator<Song>() {
+        Collections.sort(getPlaylist(), new Comparator<Song>() {
             @Override
             public int compare(Song o1, Song o2) {
                 int result = 0;

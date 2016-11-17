@@ -37,21 +37,15 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
     public static final int SORT_DURATION = 3;
     public static final int SORT_DATE = 4;
 
-    public static final int[] backColors = { Color.rgb(230,230,230), Color.rgb(255,255,255)};
+    public static final int[] backColors = {Color.rgb(230, 230, 230), Color.rgb(255, 255, 255)};
 
     private OnClickListener mOnClickListener;
     private OnQueueChangeListener mOnQueueChangeListener;
     private Context mContext;
-    public ServiceData mServiceData;
+    public ServiceData mServiceData = ServiceData.getInstance();
     public View mSelectedItem = null;
 
-    public RecyclerAdapter(Context context, ServiceData data) {
-        if(data != null) {
-            mServiceData = data;
-        } else {
-            mServiceData = new ServiceData();
-        }
-
+    public RecyclerAdapter(Context context) {
         mContext = context;
     }
 
@@ -93,13 +87,14 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
         mOnClickListener = l;
     }
 
-    public void setCurrentPosition(int position) {
-        if(!mServiceData.isPlaylistEmpty() && (position < 0 || position >= mServiceData.getPlaylistSize())) {
-            position = 0;
+    public void setCurrentPosition(int newPosition) {
+        if (!mServiceData.isPlaylistEmpty() && (newPosition < 0 || newPosition >= mServiceData.getPlaylistSize())) {
+            newPosition = 0;
         }
-        notifyItemChanged(position);
-        notifyItemChanged(mServiceData.getCurrentPosition());
-        mServiceData.setCurrentPosition(position);
+        int oldPosition = mServiceData.getCurrentPosition();
+        mServiceData.setCurrentPosition(newPosition);
+        notifyItemChanged(oldPosition);
+        notifyItemChanged(newPosition);
     }
 
     public void setServiceData(ServiceData data) {
@@ -112,7 +107,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
 
     public void addToQueue(int position) {
         int p = mServiceData.getPositionInQueue(position);
-        if( p > RecyclerView.NO_POSITION) {
+        if (p > RecyclerView.NO_POSITION) {
             mServiceData.getQueue().remove(p);
             notifyDataSetChanged();
         } else {
@@ -120,7 +115,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
             notifyItemChanged(position);
         }
 
-        if(mOnQueueChangeListener != null) {
+        if (mOnQueueChangeListener != null) {
             mOnQueueChangeListener.onChange();
         }
     }
@@ -128,16 +123,16 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
     public void addSong(Song song) {
         mServiceData.getSourcelist().add(song);
         mServiceData.doSearch();
-        if(mOnQueueChangeListener != null) {
+        if (mOnQueueChangeListener != null) {
             mOnQueueChangeListener.onChange();
         }
     }
 
     class ViewHolder extends RecyclerView.ViewHolder {
-       private TextView mArtist;
-       private TextView mTitle;
-       private ImageView mImage;
-       private TextView mOrder;
+        private TextView mArtist;
+        private TextView mTitle;
+        private ImageView mImage;
+        private TextView mOrder;
         private int mBoundPosition;
         private Song mBoundSong;
 
@@ -157,14 +152,13 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
 
                     v.setBackgroundColor(COLOR_SELECTED);
 
-                    if(mSelectedItem != null) {
+                    if (mSelectedItem != null) {
                         mSelectedItem.setBackgroundColor(backColors[mServiceData.getCurrentPosition() % 2]);
                     }
 
                     mSelectedItem = v;
-                    if(mOnClickListener != null) {
-                       mOnClickListener.onClick(v, mBoundSong, mBoundPosition);
-                       mServiceData.setCurrentPosition(mBoundPosition);
+                    if (mOnClickListener != null) {
+                        mOnClickListener.onClick(v, mBoundSong, mBoundPosition);
                     }
                 }
             });
@@ -172,7 +166,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
             mOrder.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    int position = (int)v.getTag();
+                    int position = (int) v.getTag();
                     addToQueue(position);
                 }
             });
@@ -181,8 +175,8 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
         public void onBind(Song s, int position) {
             mBoundPosition = position;
             mBoundSong = s;
-           mTitle.setText(s.songTitle);
-           mArtist.setText(s.artistTitle);
+            mTitle.setText(s.songTitle);
+            mArtist.setText(s.artistTitle);
 
             //mImage.setImageDrawable(s.albumImage);
             //ImageLoader.getInstance().displayImage(s.albumImage, mImage);
@@ -191,8 +185,8 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
             mOrder.setTag(position);
             String orderText = "";
             int pos = mServiceData.getPositionInQueue(position);
-            if(pos != RecyclerView.NO_POSITION) {
-                orderText = String.valueOf(pos+1);
+            if (pos != RecyclerView.NO_POSITION) {
+                orderText = String.valueOf(pos + 1);
             }
             mOrder.setText(orderText);
 
@@ -207,16 +201,15 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
         public int getBackgroundItemColor(int position) {
             int color;
 
-            if(mServiceData.getCurrentPosition() == position) {
+            if (mServiceData.getCurrentPosition() == position) {
                 color = COLOR_SELECTED;
             } else {
-                color =  backColors[position%2];
+                color = backColors[position % 2];
             }
 
             return color;
         }
     }
-
 
 
 }

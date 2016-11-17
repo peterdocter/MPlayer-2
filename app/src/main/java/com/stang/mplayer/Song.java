@@ -15,7 +15,7 @@ public class Song {
     public String fileName;
     public String albumImage;
 
-    public Song(String song, String artist, String album, String file, String albumId){
+    public Song(String song, String artist, String album, String file, String albumId) {
         songTitle = song;
         artistTitle = artist;
         albumTitle = album;

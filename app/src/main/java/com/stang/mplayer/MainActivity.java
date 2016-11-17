@@ -80,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
                     break;
 
                 case R.id.button_next:
-                    nextTrack();
+                    onNextTrackClick();
                     break;
 
                 case R.id.button_repeat:
@@ -125,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.d(TAG,"OnCreate start");
+        Log.d(TAG, "OnCreate start");
         getSupportActionBar().hide();
         setContentView(R.layout.activity_main);
 
@@ -159,12 +159,12 @@ public class MainActivity extends AppCompatActivity {
 
         //PLAYLIST Adapter
         //-------------------------------------
-        mAdapter = new RecyclerAdapter(MainActivity.this, null);
+        mAdapter = new RecyclerAdapter(MainActivity.this);
         mAdapter.setOnItemClickListener(new RecyclerAdapter.OnClickListener() {
             @Override
             public void onClick(View view, Song song, int position) {
                 play(position);
-                Log.d(TAG,"playlist OnClick position=" + position + " Song=" + song.fileName);
+                Log.d(TAG, "playlist OnClick position=" + position + " Song=" + song.fileName);
             }
         });
 
@@ -183,10 +183,13 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onItemSelected(AdapterView<?> parent, View view,
                                                int position, long id) {
-                        mServiceData.setSearchType(position);
-                        mServiceData.doSearch();
-                        onPlaylistChanged();
+                        if (mServiceData.getSearchType() != position) {
+                            mServiceData.setSearchType(position);
+                            mServiceData.doSearch();
+                            onPlaylistChanged();
+                        }
                     }
+
                     @Override
                     public void onNothingSelected(AdapterView<?> arg0) {
                     }
@@ -204,12 +207,13 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onItemSelected(AdapterView<?> parent, View view,
                                                int position, long id) {
-                        if(mServiceData.getSortType() != position) {
+                        if (mServiceData.getSortType() != position) {
                             mServiceData.setSortType(position);
                             mServiceData.doSort();
                             onPlaylistChanged();
                         }
                     }
+
                     @Override
                     public void onNothingSelected(AdapterView<?> arg0) {
                     }
@@ -227,16 +231,17 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onQueryTextSubmit(String query) {
                 //Toast.makeText(getBaseContext(), query, Toast.LENGTH_SHORT).show();
-                if(!mServiceData.getSearchPhrase().equalsIgnoreCase(query)) {
+                if (!mServiceData.getSearchPhrase().equalsIgnoreCase(query)) {
                     mServiceData.setSearchPhrase(query);
                     mServiceData.doSearch();
                     onPlaylistChanged();
                 }
                 return false;
             }
+
             @Override
             public boolean onQueryTextChange(String newText) {
-                if(!mServiceData.getSearchPhrase().equalsIgnoreCase(newText)) {
+                if (!mServiceData.getSearchPhrase().equalsIgnoreCase(newText)) {
                     mServiceData.setSearchPhrase(newText);
                     mServiceData.doSearch();
                     onPlaylistChanged();
@@ -251,19 +256,23 @@ public class MainActivity extends AppCompatActivity {
         mFilter = new IntentFilter();
         mFilter.addAction(PlayerService.ACTION_PROGRESS_CHANGED);
         mFilter.addAction(PlayerService.ACTION_STATE_CHANGED);
+        mFilter.addAction(PlayerService.ACTION_POSITION_CHANGED);
         mFilter.addAction(PlayerService.ACTION_EXIT);
         mReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
-                switch (action){
-                    case PlayerService.ACTION_PROGRESS_CHANGED :
+                switch (action) {
+                    case PlayerService.ACTION_PROGRESS_CHANGED:
                         onProgressChanged(intent);
                         break;
                     case PlayerService.ACTION_STATE_CHANGED:
                         onStateChanged(intent);
                         break;
-                    case PlayerService.ACTION_EXIT :
+                    case PlayerService.ACTION_POSITION_CHANGED:
+                        onPositionChanged(intent);
+                        break;
+                    case PlayerService.ACTION_EXIT:
                         killService();
                         break;
                 }
@@ -273,29 +282,38 @@ public class MainActivity extends AppCompatActivity {
         mServiceIntent = new Intent(this, PlayerService.class);
         startService(mServiceIntent);
 
-        Log.d(TAG,"OnCreate finish");
+        Log.d(TAG, "OnCreate finish");
     }
 
-    public void onProgressChanged(Intent intent){
+    public void onProgressChanged(Intent intent) {
         seekBar.setProgress(intent.getIntExtra("progress", 0));
         remain.setText(intToTime(intent.getIntExtra("remain", 0)));
     }
 
 
-    public void onStateChanged(Intent intent) {
-        int position  = intent.getIntExtra("position", -1);
+    public void onPositionChanged(Intent intent) {
+        int position = intent.getIntExtra("position", -1);
         int dur = intent.getIntExtra("duration", 0);
-        if (position > -1) {
-            mServiceData.setCurrentPosition(position);
-            Song song = mServiceData.getSong(position);
-            songTitle.setText(song.songTitle);
-            artistTitle.setText(song.artistTitle);
-            duration.setText(intToTime(dur));
-            ImageLoader.getInstance().displayImage(song.albumImage, albumImage);
-            mPlaylistView.scrollToPosition(position);
-            mAdapter.notifyDataSetChanged();
+        mAdapter.setCurrentPosition(position);
+        mPlaylistView.scrollToPosition(position);
+
+        Song song = mServiceData.getSong(position);
+        songTitle.setText(song.songTitle);
+        artistTitle.setText(song.artistTitle);
+        duration.setText(intToTime(dur));
+        remain.setText(intToTime(0));
+        seekBar.setProgress(0);
+
+        //ImageLoader.getInstance().displayImage(song.albumImage, albumImage);
+        //mAdapter.notifyDataSetChanged();
+    }
+
+    public void onStateChanged(Intent intent) {
+        if (mPlayerService != null) {
             pauseButton.setSelected(!mPlayerService.isPlaying());
         }
+        int dur = intent.getIntExtra("duration", 0);
+        duration.setText(intToTime(dur));
     }
 
 
@@ -304,13 +322,11 @@ public class MainActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName className, IBinder binder) {
             mPlayerService = ((PlayerService.MusicBinder) binder).getService();
             Log.d(TAG, "ServiceConnection " + "connected");
-            mServiceData = mPlayerService.getServiceData();
-            mAdapter.setServiceData(mServiceData);
+            mServiceData = ServiceData.getInstance();
+            //mAdapter.setServiceData(mServiceData);
 
-            if(mServiceData.isSourceListEmpty()) {
+            if (mServiceData.isSourceListEmpty()) {
                 addFolder();
-            } else {
-
             }
             searchSpinner.setSelection(mServiceData.getSearchType());
             searchView.setQuery(mServiceData.getSearchPhrase(), false);
@@ -322,18 +338,17 @@ public class MainActivity extends AppCompatActivity {
                 songTitle.setText(song.songTitle);
                 artistTitle.setText(song.artistTitle);
                 ImageLoader.getInstance().displayImage(song.albumImage, albumImage);
-                //mPlaylistView.scrollToPosition(mServiceData.getCurrentPosition());
             }
 
             pauseButton.setSelected(!mPlayerService.isPlaying());
 
-            if(mServiceData.getRepeat()) {
+            if (mServiceData.getRepeat()) {
                 repeatButton.setImageResource(android.R.drawable.btn_star_big_on);
             } else {
                 repeatButton.setImageResource(android.R.drawable.btn_star_big_off);
             }
 
-            //mAdapter.notifyDataSetChanged();
+            onPlaylistChanged();
             mPlayerService.sendBroadcastState();
         }
 
@@ -362,7 +377,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     public void seekTo(int progress) {
-        if(mPlayerService != null ){
+        if (mPlayerService != null) {
             mPlayerService.seekTo(progress);
         }
     }
@@ -377,11 +392,11 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
-        if(mReceiver != null) {
+        if (mReceiver != null) {
             unregisterReceiver(mReceiver);
         }
 
-        if(mPlayerService != null){
+        if (mPlayerService != null) {
             unbindService(myConnection);
         }
 
@@ -395,17 +410,15 @@ public class MainActivity extends AppCompatActivity {
 
 
     public void play(int position) {
-        if(position < 0) return;
-        if(mPlayerService != null) {
+        if (position < 0) return;
+        if (mPlayerService != null) {
             mPlayerService.play(position);
         }
-        mAdapter.setCurrentPosition(position);
-//        Log.d(TAG, "play " + mAdapter.getSong(position));
     }
 
 
     public void pause() {
-        if(mPlayerService != null) {
+        if (mPlayerService != null) {
             mPlayerService.pause();
             //pauseButton.setSelected(mPlayerService.isPlaying() ? false : true);
             pauseButton.setSelected(!mPlayerService.isPlaying());
@@ -429,8 +442,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    public ArrayList<Song> getPlayListFromURI(Uri uri){
-        ArrayList<Song> songs =new ArrayList<>();
+    public ArrayList<Song> getPlayListFromURI(Uri uri) {
+        ArrayList<Song> songs = new ArrayList<>();
 
         ContentResolver contentResolver = getContentResolver();
         Cursor cursor = contentResolver.query(uri, null, null, null, null);
@@ -468,21 +481,21 @@ public class MainActivity extends AppCompatActivity {
         return new Song(title, artist, album, String.valueOf(filename), albumArtUri.toString());
     }
 
-    public void onPrevTrackClick(){
-        if(mPlayerService != null) {
+    public void onPrevTrackClick() {
+        if (mPlayerService != null) {
             mPlayerService.prevTrack();
         }
     }
 
 
-    public void nextTrack(){
-        if(mPlayerService != null) {
+    public void onNextTrackClick() {
+        if (mPlayerService != null) {
             mPlayerService.nextTrack();
         }
     }
 
 
-    private void addFiles(){
+    private void addFiles() {
         Log.d(TAG, "addFiles");
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("audio/*");      //all files
@@ -496,15 +509,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private void addFolder(){
+    private void addFolder() {
         mServiceData.setSourceList(
                 getPlayListFromURI(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI));
-        onPlaylistChanged();
     }
 
 
     private void killService() {
-        if(mPlayerService != null) {
+        if (mPlayerService != null) {
             //unbindService(myConnection);
             stopService(mServiceIntent);
         }
@@ -520,13 +532,13 @@ public class MainActivity extends AppCompatActivity {
                 String path = data.getDataString();
 
                 Cursor cursor = null;
-                cursor = getApplicationContext().getContentResolver().query(selectedFileUri,  null, null, null, null);
-                if(cursor != null) {
+                cursor = getApplicationContext().getContentResolver().query(selectedFileUri, null, null, null, null);
+                if (cursor != null) {
                     cursor.moveToFirst();
                 }
                 mAdapter.addSong(parseCursor(cursor));
 
-                if(mServiceData.getCurrentPosition() < 0) mServiceData.setCurrentPosition(0);
+                if (mServiceData.getCurrentPosition() < 0) mServiceData.setCurrentPosition(0);
 
                 onPlaylistChanged();
             }

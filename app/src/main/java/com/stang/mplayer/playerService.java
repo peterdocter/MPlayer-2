@@ -190,11 +190,18 @@ public class PlayerService extends Service {
 
 
     public void sendBroadcastProgress() {
-        int progress = (mPlayer.getCurrentPosition() * 100 / mPlayer.getDuration());
+        int progress = 0;
+        int remain = 0;
+        if(mMediaPlayerPrepared) {
+            progress = (mPlayer.getCurrentPosition() * 100 / mPlayer.getDuration());
+            remain = mPlayer.getCurrentPosition();
+        }
+
         Intent i = new Intent(PlayerService.ACTION_PROGRESS_CHANGED)
                 .putExtra("progress", progress)
-                .putExtra("remain", mPlayer.getCurrentPosition());
+                .putExtra("remain", remain);
         sendBroadcast(i);
+
         Log.d(TAG, "SERVICE mUpdater, progress=" + progress);
     }
 

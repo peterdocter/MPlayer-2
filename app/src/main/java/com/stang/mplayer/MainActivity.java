@@ -446,6 +446,7 @@ public class MainActivity extends AppCompatActivity {
         mAdapter.notifyDataSetChanged();
         mPlayerService.sendBroadcastState();
         mPlayerService.sendBroadcastPosition(mServiceData.getCurrentPosition());
+        mPlayerService.sendBroadcastProgress();
     }
 
 

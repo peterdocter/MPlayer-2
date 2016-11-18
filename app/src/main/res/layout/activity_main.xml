@@ -117,7 +117,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/button_repeat"
-                android:src="@android:drawable/btn_star_big_off"
+                android:src="@drawable/ic_repeat_white_18dp"
                 android:layout_weight="1" />
         </LinearLayout>
 

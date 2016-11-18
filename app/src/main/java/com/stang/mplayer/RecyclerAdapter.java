@@ -93,7 +93,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
             newPosition = 0;
         }
 
-        if(mPrevPosition != newPosition) {
+        if (mPrevPosition != newPosition) {
             mServiceData.setCurrentPosition(newPosition);
             notifyItemChanged(mPrevPosition);
             notifyItemChanged(newPosition);
@@ -168,7 +168,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
             mArtist.setText(s.artistTitle);
 
             //mImage.setImageDrawable(s.albumImage);
-            //ImageLoader.getInstance().displayImage(s.albumImage, mImage);
+            ImageLoader.getInstance().displayImage(s.albumImage, mImage);
 
             Log.d(TAG, "imageLoader uri: " + s.albumImage);
 

@@ -192,7 +192,7 @@ public class PlayerService extends Service {
     public void sendBroadcastProgress() {
         int progress = 0;
         int remain = 0;
-        if(mMediaPlayerPrepared) {
+        if (mMediaPlayerPrepared) {
             progress = (mPlayer.getCurrentPosition() * 100 / mPlayer.getDuration());
             remain = mPlayer.getCurrentPosition();
         }
@@ -357,9 +357,9 @@ public class PlayerService extends Service {
         Notification.Builder builder = new Notification.Builder(this);
 
         builder.setContentIntent(contentIntent)
-                .setSmallIcon(R.drawable.ipod_nano)
+                .setSmallIcon(R.drawable.music_box_white)
                 // большая картинка
-                .setLargeIcon(BitmapFactory.decodeResource(res, R.drawable.ipod_player_icon_small))
+                .setLargeIcon(BitmapFactory.decodeResource(res, R.drawable.music_box_white))
                 //.setTicker(res.getString(R.string.warning)) // текст в строке состояния
                 .setTicker("MEDIA PLAYER SERVICE")
                 .setWhen(System.currentTimeMillis())
@@ -413,9 +413,9 @@ public class PlayerService extends Service {
         }
 
         builder.setContentIntent(contentIntent)
-                .setSmallIcon(R.drawable.ipod_nano)
+                .setSmallIcon(R.drawable.music_box_white)
                 // большая картинка
-                .setLargeIcon(BitmapFactory.decodeResource(res, R.drawable.ipod_player_icon_small))
+                .setLargeIcon(BitmapFactory.decodeResource(res, R.drawable.music_box_white))
                 //.setTicker(res.getString(R.string.warning)) // текст в строке состояния
                 .setTicker(text)
                 .setWhen(System.currentTimeMillis())

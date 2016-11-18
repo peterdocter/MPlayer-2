@@ -1,5 +1,17 @@
 <resources>
     <string name="app_name">MPlayer</string>
-    <string name="search_prompt">search</string>
-    <string name="sort_prompt">sort</string>
+    <string name="search_prompt">Search...</string>
+    <string name="sort_prompt">Sort</string>
+    <string-array name="sort_criteria">
+        <item>sort:Song</item>
+        <item>sort:Artist</item>
+        <item>sort:Date</item>
+        <item>sort:Duration</item>
+    </string-array>
+    <string-array name="search_criteria">
+        <item>Song</item>
+        <item>Artist</item>
+        <item>Album</item>
+    </string-array>
+
 </resources>

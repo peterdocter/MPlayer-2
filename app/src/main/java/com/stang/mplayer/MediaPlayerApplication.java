@@ -17,8 +17,8 @@ import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
 public class MediaPlayerApplication extends Application {
 
     DisplayImageOptions options = new DisplayImageOptions.Builder()
-            .showImageOnFail(R.drawable.ipod_player_icon1)
-            .showImageForEmptyUri(R.drawable.ipod_player_icon1)
+            .showImageOnFail(R.drawable.ipod_player_icon_small)
+            .showImageForEmptyUri(R.drawable.music_box_black)
             //.imageScaleType(ImageScaleType.EXACTLY_STRETCHED)
             //.resetViewBeforeLoading()
             //.cacheInMemory()

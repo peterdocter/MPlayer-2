@@ -88,10 +88,10 @@ public class MainActivity extends AppCompatActivity {
 
                 case R.id.button_repeat:
                     if (mServiceData.getRepeat()) {
-                        repeatButton.setImageResource(android.R.drawable.btn_star_big_off);
+                        repeatButton.setImageResource(R.drawable.ic_repeat_black_18dp);
                         mServiceData.setRepeat(false);
                     } else {
-                        repeatButton.setImageResource(android.R.drawable.btn_star_big_on);
+                        repeatButton.setImageResource(R.drawable.ic_repeat_white_18dp);
                         mServiceData.setRepeat(true);
                     }
                     break;
@@ -118,7 +118,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public Loader<Playlist> onCreateLoader(int id, Bundle args) {
             Loader<Playlist> loader = null;
-            if(id == PLAYLIST_LOADER_ID) {
+            if (id == PLAYLIST_LOADER_ID) {
                 loader = new PlaylistLoader(getApplicationContext(), args);
             }
             return loader;
@@ -187,11 +187,11 @@ public class MainActivity extends AppCompatActivity {
 
         // SEARCH SPINNER
         //--------------------------------------
-        String[] searchCriteria = {"Song", "Artist", "Album"};
+        String[] searchCriteria = getResources().getStringArray(R.array.search_criteria);
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, searchCriteria);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         searchSpinner.setAdapter(adapter);
-        searchSpinner.setPrompt("Search");
+        searchSpinner.setPrompt(getResources().getString(R.string.search_prompt));
         searchSpinner.setSelection(RecyclerAdapter.SEARCH_SONG);
         searchSpinner.setOnItemSelectedListener(
                 new AdapterView.OnItemSelectedListener() {
@@ -211,11 +211,11 @@ public class MainActivity extends AppCompatActivity {
                 });
         // SORT SPINNER
         //-------------------------------------
-        String[] sortCriteria = {"sort:Song", "sort:Artist", "sort:Date", "sort:Duration"};
+        String[] sortCriteria = getResources().getStringArray(R.array.sort_criteria);
         ArrayAdapter<String> sortAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, sortCriteria);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         sortSpinner.setAdapter(sortAdapter);
-        sortSpinner.setPrompt("Sort");
+        sortSpinner.setPrompt(getResources().getString(R.string.sort_prompt));
         sortSpinner.setSelection(RecyclerAdapter.SEARCH_SONG);
         sortSpinner.setOnItemSelectedListener(
                 new AdapterView.OnItemSelectedListener() {
@@ -236,7 +236,7 @@ public class MainActivity extends AppCompatActivity {
 
         //SEARCH VIEW
         //-----------------------------------------
-        searchView.setQueryHint("Search...");
+        searchView.setQueryHint(getResources().getString(R.string.search_prompt));
         searchView.setOnQueryTextFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
@@ -313,18 +313,18 @@ public class MainActivity extends AppCompatActivity {
         mPlaylistView.scrollToPosition(position);
 
         Song song = mServiceData.getSong(position);
-        if(song == null)
+        if (song == null)
             song = new Song("", "", "", "", null);
 
         songTitle.setText(song.songTitle);
         artistTitle.setText(song.artistTitle);
-        //ImageLoader.getInstance().displayImage(song.albumImage, albumImage);
+        ImageLoader.getInstance().displayImage(song.albumImage, albumImage);
 
         duration.setText(intToTime(dur));
         remain.setText(intToTime(0));
         seekBar.setProgress(0);
 
-        if(!mServiceData.isQueueEmpty()) mAdapter.notifyDataSetChanged();
+        if (!mServiceData.isQueueEmpty()) mAdapter.notifyDataSetChanged();
     }
 
     public void onStateChanged(Intent intent) {
@@ -495,6 +495,7 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "no FileManager", Toast.LENGTH_SHORT).show();
         }
     }
+
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == RESULT_OK) {
             if (requestCode == FILE_SELECT_CODE) {

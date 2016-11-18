@@ -25,7 +25,7 @@ public class PlaylistLoader extends AsyncTaskLoader<Playlist> {
     public PlaylistLoader(Context context, Bundle args) {
         super(context);
         mContext = context;
-        mDataUri = (args == null)? DEFAULT_DATA_URI : Uri.parse((String)args.get(ARGS_PLAYLIST_URI));
+        mDataUri = (args == null) ? DEFAULT_DATA_URI : Uri.parse((String) args.get(ARGS_PLAYLIST_URI));
     }
 
     @Override

@@ -44,6 +44,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
     private Context mContext;
     public ServiceData mServiceData = ServiceData.getInstance();
     public View mSelectedItem = null;
+    public int mPrevPosition = -1;
 
     public RecyclerAdapter(Context context) {
         mContext = context;
@@ -91,14 +92,13 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
         if (!mServiceData.isPlaylistEmpty() && (newPosition < 0 || newPosition >= mServiceData.getPlaylistSize())) {
             newPosition = 0;
         }
-        int oldPosition = mServiceData.getCurrentPosition();
-        mServiceData.setCurrentPosition(newPosition);
-        notifyItemChanged(oldPosition);
-        notifyItemChanged(newPosition);
-    }
 
-    public void setServiceData(ServiceData data) {
-        mServiceData = data;
+        if(mPrevPosition != newPosition) {
+            mServiceData.setCurrentPosition(newPosition);
+            notifyItemChanged(mPrevPosition);
+            notifyItemChanged(newPosition);
+            mPrevPosition = newPosition;
+        }
     }
 
     public void setOnQueueChangeListener(OnQueueChangeListener l) {
@@ -138,8 +138,6 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
 
         public ViewHolder(View v) {
             super(v);
-            int position = getAdapterPosition();
-            v.setTag(position);
 
             mTitle = ((TextView) v.findViewById(R.id.songItem_song));
             mArtist = ((TextView) v.findViewById(R.id.songItem_artist));
@@ -149,17 +147,8 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
             v.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-
-                    v.setBackgroundColor(COLOR_SELECTED);
-
-                    if (mSelectedItem != null) {
-                        mSelectedItem.setBackgroundColor(backColors[mServiceData.getCurrentPosition() % 2]);
-                    }
-
-                    mSelectedItem = v;
-                    if (mOnClickListener != null) {
+                    if (mOnClickListener != null)
                         mOnClickListener.onClick(v, mBoundSong, mBoundPosition);
-                    }
                 }
             });
 
@@ -180,6 +169,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
 
             //mImage.setImageDrawable(s.albumImage);
             //ImageLoader.getInstance().displayImage(s.albumImage, mImage);
+
             Log.d(TAG, "imageLoader uri: " + s.albumImage);
 
             mOrder.setTag(position);

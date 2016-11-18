@@ -318,7 +318,7 @@ public class MainActivity extends AppCompatActivity {
 
         songTitle.setText(song.songTitle);
         artistTitle.setText(song.artistTitle);
-        ImageLoader.getInstance().displayImage(song.albumImage, albumImage);
+        //ImageLoader.getInstance().displayImage(song.albumImage, albumImage);
 
         duration.setText(intToTime(dur));
         remain.setText(intToTime(0));
@@ -339,21 +339,15 @@ public class MainActivity extends AppCompatActivity {
     public ServiceConnection myConnection = new ServiceConnection() {
 
         public void onServiceConnected(ComponentName className, IBinder binder) {
-            mPlayerService = ((PlayerService.MusicBinder) binder).getService();
             Log.d(TAG, "ServiceConnection " + "connected");
+
+            mPlayerService = ((PlayerService.MusicBinder) binder).getService();
             mServiceData = ServiceData.getInstance();
 
             searchSpinner.setSelection(mServiceData.getSearchType());
             searchView.setQuery(mServiceData.getSearchPhrase(), false);
 
             Log.d(TAG, "onServiceConnected currentPosition = " + mServiceData.getCurrentPosition());
-
-            if (!mServiceData.isPlaylistEmpty()) {
-                Song song = mServiceData.getCurrentSong();
-                songTitle.setText(song.songTitle);
-                artistTitle.setText(song.artistTitle);
-                ImageLoader.getInstance().displayImage(song.albumImage, albumImage);
-            }
 
             pauseButton.setSelected(!mPlayerService.isPlaying());
 

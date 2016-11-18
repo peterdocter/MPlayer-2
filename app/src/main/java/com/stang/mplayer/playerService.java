@@ -253,6 +253,7 @@ public class PlayerService extends Service {
             initPlayer();
         }
 
+        mServiceData.setCurrentPosition(newPosition);
         sendBroadcastPosition(newPosition);
         Song song = mServiceData.getSong(newPosition);
         Uri fileUri = Uri.parse(song.fileName);

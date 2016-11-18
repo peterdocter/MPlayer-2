@@ -23,8 +23,7 @@ import java.util.Comparator;
 public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHolder> {
     public static final String TAG = RecyclerAdapter.class.getSimpleName();
 
-    // todo item selector from xml
-    public static final int COLOR_SELECTED = Color.GREEN;
+     public static final int COLOR_SELECTED = Color.GREEN;
 
     public static final int SEARCH_SONG = 0;
     public static final int SEARCH_ARTIST = 1;
@@ -161,16 +160,16 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.ViewHo
             });
         }
 
-        public void onBind(Song s, int position) {
+        public void onBind(Song song, int position) {
             mBoundPosition = position;
-            mBoundSong = s;
-            mTitle.setText(s.songTitle);
-            mArtist.setText(s.artistTitle);
+            mBoundSong = song;
+            mTitle.setText(song.songTitle);
+            mArtist.setText(song.artistTitle);
 
-            //mImage.setImageDrawable(s.albumImage);
-            ImageLoader.getInstance().displayImage(s.albumImage, mImage);
+            //mImage.setImageDrawable(song.albumImage);
+            ImageLoader.getInstance().displayImage(song.albumImage, mImage);
 
-            Log.d(TAG, "imageLoader uri: " + s.albumImage);
+            Log.d(TAG, "imageLoader uri: " + song.albumImage);
 
             mOrder.setTag(position);
             String orderText = "";

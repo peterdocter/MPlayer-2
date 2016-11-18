@@ -144,6 +144,7 @@ public class MainActivity extends AppCompatActivity {
         getSupportActionBar().hide();
         setContentView(R.layout.activity_main);
 
+        // todo break to  of methods
         mPlaylistView = (RecyclerView) findViewById(R.id.listView_playlist);
 
         seekBar = (SeekBar) findViewById(R.id.seekBar);
@@ -184,55 +185,9 @@ public class MainActivity extends AppCompatActivity {
         });
 
         mPlaylistView.setAdapter(mAdapter);
+        initSearchSpinner();
+        initSortSpinner();
 
-        // SEARCH SPINNER
-        //--------------------------------------
-        String[] searchCriteria = getResources().getStringArray(R.array.search_criteria);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, searchCriteria);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        searchSpinner.setAdapter(adapter);
-        searchSpinner.setPrompt(getResources().getString(R.string.search_prompt));
-        searchSpinner.setSelection(RecyclerAdapter.SEARCH_SONG);
-        searchSpinner.setOnItemSelectedListener(
-                new AdapterView.OnItemSelectedListener() {
-                    @Override
-                    public void onItemSelected(AdapterView<?> parent, View view,
-                                               int position, long id) {
-                        if (mServiceData.getSearchType() != position) {
-                            mServiceData.setSearchType(position);
-                            mServiceData.doSearch();
-                            onPlaylistChanged();
-                        }
-                    }
-
-                    @Override
-                    public void onNothingSelected(AdapterView<?> arg0) {
-                    }
-                });
-        // SORT SPINNER
-        //-------------------------------------
-        String[] sortCriteria = getResources().getStringArray(R.array.sort_criteria);
-        ArrayAdapter<String> sortAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, sortCriteria);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        sortSpinner.setAdapter(sortAdapter);
-        sortSpinner.setPrompt(getResources().getString(R.string.sort_prompt));
-        sortSpinner.setSelection(RecyclerAdapter.SEARCH_SONG);
-        sortSpinner.setOnItemSelectedListener(
-                new AdapterView.OnItemSelectedListener() {
-                    @Override
-                    public void onItemSelected(AdapterView<?> parent, View view,
-                                               int position, long id) {
-                        if (mServiceData.getSortType() != position) {
-                            mServiceData.setSortType(position);
-                            mServiceData.doSort();
-                            onPlaylistChanged();
-                        }
-                    }
-
-                    @Override
-                    public void onNothingSelected(AdapterView<?> arg0) {
-                    }
-                });
 
         //SEARCH VIEW
         //-----------------------------------------
@@ -300,6 +255,62 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "OnCreate finish");
     }
 
+    private void initSortSpinner() {
+        // SORT SPINNER
+        //-------------------------------------
+
+        String[] sortCriteria = getResources().getStringArray(R.array.sort_criteria);
+        ArrayAdapter<String> sortAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, sortCriteria);
+        sortAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        sortSpinner.setAdapter(sortAdapter);
+        sortSpinner.setPrompt(getResources().getString(R.string.sort_prompt));
+        sortSpinner.setSelection(RecyclerAdapter.SEARCH_SONG);
+        sortSpinner.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent, View view,
+                                               int position, long id) {
+                        if (mServiceData.getSortType() != position) {
+                            mServiceData.setSortType(position);
+                            mServiceData.doSort();
+                            onPlaylistChanged();
+                        }
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> arg0) {
+                    }
+                });
+    }
+
+    private void initSearchSpinner() {
+        // SEARCH SPINNER
+        //--------------------------------------
+        searchSpinner = (Spinner) findViewById(R.id.spinner_search);
+        String[] searchCriteria = getResources().getStringArray(R.array.search_criteria);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, searchCriteria);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        searchSpinner.setAdapter(adapter);
+        searchSpinner.setPrompt(getResources().getString(R.string.search_prompt));
+        searchSpinner.setSelection(RecyclerAdapter.SEARCH_SONG);
+        searchSpinner.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent, View view,
+                                               int position, long id) {
+                        if (mServiceData.getSearchType() != position) {
+                            mServiceData.setSearchType(position);
+                            mServiceData.doSearch();
+                            onPlaylistChanged();
+                        }
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> arg0) {
+                    }
+                });
+    }
+
     public void onProgressChanged(Intent intent) {
         seekBar.setProgress(intent.getIntExtra("progress", 0));
         remain.setText(intToTime(intent.getIntExtra("remain", 0)));
@@ -307,6 +318,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     public void onPositionChanged(Intent intent) {
+        // todo extract like a constants
         int position = intent.getIntExtra("position", -1);
         int dur = intent.getIntExtra("duration", 0);
         mAdapter.setCurrentPosition(position);
@@ -314,7 +326,7 @@ public class MainActivity extends AppCompatActivity {
 
         Song song = mServiceData.getSong(position);
         if (song == null)
-            song = new Song("", "", "", "", null);
+            song = new Song();
 
         songTitle.setText(song.songTitle);
         artistTitle.setText(song.artistTitle);

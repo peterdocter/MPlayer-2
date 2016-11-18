@@ -15,6 +15,14 @@ public class Song {
     public String fileName;
     public String albumImage;
 
+    public Song() {
+        songTitle = "";
+        artistTitle = "";
+        albumTitle = "";
+        fileName = "";
+        albumImage = "";
+    }
+
     public Song(String song, String artist, String album, String file, String albumId) {
         songTitle = song;
         artistTitle = artist;

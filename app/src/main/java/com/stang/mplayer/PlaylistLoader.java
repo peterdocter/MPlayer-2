@@ -35,6 +35,7 @@ public class PlaylistLoader extends AsyncTaskLoader<Playlist> {
 
         ContentResolver contentResolver = mContext.getContentResolver();
         Cursor cursor = contentResolver.query(mDataUri, null, null, null, null);
+
         if (cursor == null) {
             // query failed, handle error.
         } else if (!cursor.moveToFirst()) {

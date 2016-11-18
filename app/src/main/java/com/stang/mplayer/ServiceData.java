@@ -52,6 +52,10 @@ public class ServiceData {
         return mSourcelist.isEmpty();
     }
 
+    public boolean isQueueEmpty() {
+        return mQueue.isEmpty();
+    }
+
     public boolean hasNext() {
         return mCurrentPosition < mPlaylist.size() - 1;
     }

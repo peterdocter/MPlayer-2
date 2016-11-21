@@ -15,7 +15,7 @@
         android:name=".MediaPlayerApplication">
 
         <activity android:name=".MainActivity"
-            android:noHistory="true"
+            android:noHistory="false"
             android:windowSoftInputMode="stateHidden|adjustPan"
             android:screenOrientation="portrait">
             <intent-filter>

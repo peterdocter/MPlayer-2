@@ -47,7 +47,6 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
     public static final int FILE_SELECT_CODE = 1;
     private static final int PLAYLIST_LOADER_ID = 1;
     private static final int PERMISSION_REQUEST_CODE = 1;
-    private Boolean mExtStoragePermissionGranted = false;
     private String[] mPermissionToRequest = {
         Manifest.permission.READ_EXTERNAL_STORAGE,
         //Manifest.permission.READ_SMS
@@ -176,7 +175,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        //Log.d(TAG, "OnCreate start");
+
         getSupportActionBar().hide();
         setContentView(R.layout.activity_main);
 
@@ -193,7 +192,6 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         mServiceIntent = new Intent(this, PlayerService.class);
         startService(mServiceIntent);
 
-        //Log.d(TAG, "OnCreate finish");
     }
 
     private void initPlaylistView() {
@@ -335,19 +333,15 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
                 == PackageManager.PERMISSION_GRANTED) {
             //final File externalStorage = Environment.getExternalStorageDirectory();
-            mExtStoragePermissionGranted = true;
 //            if (externalStorage != null) {
 //                mExtStoragePermissionGranted = true;
 //            } else {
 //                mExtStoragePermissionGranted = false;
 //            }
-        } else {
-            mExtStoragePermissionGranted = false;
         }
     }
 
     private void requestReadExtStoragePermission(){
-        Log.d(TAG, "requestReadExtStoragePermission");
         ActivityCompat.requestPermissions(MainActivity.this,
                 new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
                 PERMISSION_REQUEST_CODE);
@@ -356,11 +350,9 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions,
                                            int[] grantResults) {
-        Log.d(TAG, "onRequestPermissionsResult");
         if (requestCode == PERMISSION_REQUEST_CODE && grantResults.length == 1) {
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                //mExtStoragePermissionGranted = true;
-                Toast.makeText(MainActivity.this, "GRANTED", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, getString(R.string.permission_granted), Toast.LENGTH_LONG).show();
                 loadPlaylistFromExtStorage();
             }   else {
                 showSnackbarRequestPermission();
@@ -371,9 +363,8 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
 
     private void showSnackbarRequestPermission(){
         final String message = getString(R.string.storage_permission_needed);
-        //Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
                     Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_INDEFINITE)
-                            .setAction("GRANT", new View.OnClickListener() {
+                            .setAction(getString(R.string.grant), new View.OnClickListener() {
                                 @Override
                                 public void onClick(View v) {
                                     requestReadExtStoragePermission();
@@ -419,15 +410,13 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
     public ServiceConnection myConnection = new ServiceConnection() {
 
         public void onServiceConnected(ComponentName className, IBinder binder) {
-            Log.d(TAG, "ServiceConnection " + "connected");
+            Log.d(TAG, "ServiceConnection: " + "connected");
 
             mPlayerService = ((PlayerService.MusicBinder) binder).getService();
             mServiceData = ServiceData.getInstance();
 
             searchSpinner.setSelection(mServiceData.getSearchType());
             searchView.setQuery(mServiceData.getSearchPhrase(), false);
-
-            //Log.d(TAG, "onServiceConnected currentPosition = " + mServiceData.getCurrentPosition());
 
             pauseButton.setSelected(!mPlayerService.isPlaying());
 
@@ -438,7 +427,6 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
             }
 
             if (mServiceData.isSourceListEmpty()) {
-                //checkRuntimePermissions();
                 if(ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE)
                         == PackageManager.PERMISSION_GRANTED) {
                     loadPlaylistFromExtStorage();
@@ -456,7 +444,6 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         }
 
         public void onServiceDisconnected(ComponentName className) {
-            //Log.d(TAG, "ServiceConnection " + "disconnected");
             mPlayerService = null;
         }
     };

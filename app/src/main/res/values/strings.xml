@@ -5,6 +5,8 @@
     <string name="add_files_prompt">Select a File to add</string>
     <string name="notification_title">Custom MediaPlayer</string>
     <string name="storage_permission_needed">Storage permission is needed to show playlist</string>
+    <string name="permission_granted">"Permission GRANTED"</string>
+    <string name="grant">GRANT</string>
 
     <string-array name="sort_criteria">
         <item>sort:Song</item>

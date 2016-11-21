@@ -1,9 +1,5 @@
 package com.stang.mplayer;
 
-import android.graphics.Bitmap;
-import android.graphics.drawable.Drawable;
-import android.net.Uri;
-
 /**
  * Created by Stanislav on 24.10.2016.
  */

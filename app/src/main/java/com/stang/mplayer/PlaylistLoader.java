@@ -9,7 +9,6 @@ import android.os.Bundle;
 import android.content.AsyncTaskLoader;
 import android.provider.MediaStore;
 
-import java.util.ArrayList;
 
 /**
  * Created by Stanislav on 18.11.2016.
@@ -19,18 +18,18 @@ public class PlaylistLoader extends AsyncTaskLoader<Playlist> {
     public final static String ARGS_PLAYLIST_URI = "playlist_uri";
     public final static String ALBUMART_URI_STRING = "content://media/external/audio/albumart";
     public final static Uri DEFAULT_DATA_URI = android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+    public final static Uri INTERNAL_DATA_URI = MediaStore.Audio.Media.INTERNAL_CONTENT_URI;
     private Uri mDataUri;
     private Context mContext;
 
     public PlaylistLoader(Context context, Bundle args) {
         super(context);
         mContext = context;
-        mDataUri = (args == null) ? DEFAULT_DATA_URI : Uri.parse((String) args.get(ARGS_PLAYLIST_URI));
+        mDataUri = (args == null) ? INTERNAL_DATA_URI : Uri.parse((String) args.get(ARGS_PLAYLIST_URI));
     }
 
     @Override
     public Playlist loadInBackground() {
-        // todo load playlist
         Playlist songs = new Playlist();
 
         ContentResolver contentResolver = mContext.getContentResolver();

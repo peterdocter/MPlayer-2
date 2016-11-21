@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.BitmapFactory;
 import android.media.AudioManager;
@@ -22,6 +23,7 @@ import android.os.Messenger;
 import android.os.PowerManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.widget.Toast;
 
 /**
  * Created by Stanislav on 25.10.2016.
@@ -39,6 +41,11 @@ public class PlayerService extends Service {
     public static final String ACTION_PREV = "ACTION_PREV";
     public static final String ACTION_NEXT = "ACTION_NEXT";
     public static final String ACTION_EXIT = "ACTION_EXIT";
+    public static final String ARG_INTENT_POSITION = "position";
+    public static final String ARG_INTENT_DURATION = "duration";
+    public static final String ARG_INTENT_REMAIN = "remain";
+    public static final String ARG_INTENT_PROGRESS = "progress";
+
 
     private NotificationManager mNotificationManager;
     private IntentFilter mIntentFilter;
@@ -93,7 +100,6 @@ public class PlayerService extends Service {
         }
     }
 
-
     public void onCreate() {
         super.onCreate();
         //Log.d(TAG, "onCreate SERVICE");
@@ -101,16 +107,28 @@ public class PlayerService extends Service {
 
         initPlayer();
 
-        mIntentFilter = new IntentFilter();
-        mIntentFilter.addAction(PlayerService.ACTION_PLAY);
-        mIntentFilter.addAction(PlayerService.ACTION_NEXT);
-        mIntentFilter.addAction(PlayerService.ACTION_EXIT);
+        mIntentFilter = getIntentFilterForService();
+        mReceiver = getBroadcastReceiverForService();
+        registerReceiver(mReceiver, mIntentFilter);
 
-        mReceiver = new BroadcastReceiver() {
+        startForeground(NOTIFY_ID, getEmptyNotification());
+        //stopForeground(true);
+    }
+
+    private IntentFilter getIntentFilterForService() {
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(PlayerService.ACTION_PLAY);
+        intentFilter.addAction(PlayerService.ACTION_NEXT);
+        intentFilter.addAction(PlayerService.ACTION_EXIT);
+        return intentFilter;
+    }
+
+    private BroadcastReceiver getBroadcastReceiverForService() {
+        return new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
-                Log.d(TAG, "SERVICE mReceiver action=" + action);
+                //Log.d(TAG, "SERVICE mReceiver action=" + action);
                 switch (action) {
                     case PlayerService.ACTION_EXIT:
                         stopSelf();
@@ -124,13 +142,7 @@ public class PlayerService extends Service {
                 }
             }
         };
-
-        registerReceiver(mReceiver, mIntentFilter);
-
-        startForeground(NOTIFY_ID, getEmptyNotification());
-        //stopForeground(true);
     }
-
 
     public void initPlayer() {
         mPlayer = new MediaPlayer();
@@ -150,7 +162,6 @@ public class PlayerService extends Service {
                         seekTo(0);
                         sendBroadcastState();
                     }
-
                 }
                 showNotify();
             }
@@ -175,17 +186,17 @@ public class PlayerService extends Service {
             duration = mPlayer.getDuration();
         }
         Intent i = new Intent(PlayerService.ACTION_STATE_CHANGED)
-                .putExtra("position", mServiceData.getCurrentPosition())
-                .putExtra("duration", duration);
+                .putExtra(ARG_INTENT_POSITION, mServiceData.getCurrentPosition())
+                .putExtra(ARG_INTENT_DURATION, duration);
         sendBroadcast(i);
     }
 
 
     public void sendBroadcastPosition(int position) {
         Intent i = new Intent(PlayerService.ACTION_POSITION_CHANGED)
-                .putExtra("position", position);
+                .putExtra(ARG_INTENT_POSITION, position);
         sendBroadcast(i);
-        Log.d(TAG, "SERVICE mUpdater,  newPosition=" + position);
+        //Log.d(TAG, "SERVICE mUpdater,  newPosition=" + position);
     }
 
 
@@ -198,16 +209,16 @@ public class PlayerService extends Service {
         }
 
         Intent i = new Intent(PlayerService.ACTION_PROGRESS_CHANGED)
-                .putExtra("progress", progress)
-                .putExtra("remain", remain);
+                .putExtra(ARG_INTENT_PROGRESS, progress)
+                .putExtra(ARG_INTENT_REMAIN, remain);
         sendBroadcast(i);
 
-        Log.d(TAG, "SERVICE mUpdater, progress=" + progress);
+        //Log.d(TAG, "SERVICE mUpdater, progress=" + progress);
     }
 
 
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "SERVICE onStartCommand");
+        //Log.d(TAG, "SERVICE onStartCommand");
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -228,11 +239,11 @@ public class PlayerService extends Service {
     }
 
 
-    public void seekTo(int seekBarPosition) {
+    public void seekTo(int seekBarPositionInPercents) {
         if (mMediaPlayerPrepared) {
-            int songDuration = mPlayer.getDuration();
-            int msec = (int) (songDuration * seekBarPosition / 100F);
-            mPlayer.seekTo(msec);
+            int songDurationMS = mPlayer.getDuration();
+            int durationToSeek = (int) (songDurationMS * seekBarPositionInPercents / 100F);
+            mPlayer.seekTo(durationToSeek);
             sendBroadcastProgress();
         }
     }
@@ -245,7 +256,7 @@ public class PlayerService extends Service {
 
 
     public void play(int newPosition) {
-        Log.d(TAG, "PlayerService.play(" + newPosition + ")");
+        //Log.d(TAG, "PlayerService.play(" + newPosition + ")");
         if (newPosition < 0 || newPosition >= mServiceData.getPlaylistSize()) return;
         mMediaPlayerPrepared = false;
         mHandler.removeCallbacks(mUpdater);
@@ -266,8 +277,8 @@ public class PlayerService extends Service {
         Uri fileUri = Uri.parse(song.fileName);
 
         try {
-            Log.d(TAG, "file URI = " + fileUri.toString());
-            Log.d(TAG, (mPlayer == null) ? "mPlayer=null" : "mPlayer!=null");
+            //Log.d(TAG, "file URI = " + fileUri.toString());
+            //Log.d(TAG, (mPlayer == null) ? "mPlayer=null" : "mPlayer!=null");
             mPlayer.setDataSource(getApplicationContext(), fileUri);
             mPlayer.prepareAsync();
         } catch (Exception e) {
@@ -358,15 +369,11 @@ public class PlayerService extends Service {
 
         builder.setContentIntent(contentIntent)
                 .setSmallIcon(R.drawable.music_box_white)
-                // большая картинка
-                .setLargeIcon(BitmapFactory.decodeResource(res, R.drawable.music_box_white))
-                //.setTicker(res.getString(R.string.warning)) // текст в строке состояния
-                .setTicker("MEDIA PLAYER SERVICE")
+                 .setLargeIcon(BitmapFactory.decodeResource(res, R.drawable.music_box_white))
+                 .setTicker(getString(R.string.notification_title))
                 .setWhen(System.currentTimeMillis())
                 .setAutoCancel(false)
-                //.setContentTitle(res.getString(R.string.notifytitle))
-                .setContentTitle("Media Player SERVICE")
-                //.setContentText(res.getString(R.string.notifytext))
+                 .setContentTitle(getString(R.string.notification_title))
                 .setContentText("...");
 
         Notification notification;
@@ -396,7 +403,6 @@ public class PlayerService extends Service {
         PendingIntent contentIntent = PendingIntent.getActivity(this,
                 0, notificationIntent,
                 PendingIntent.FLAG_CANCEL_CURRENT);
-
         PendingIntent pIntentPlay = PendingIntent.getBroadcast(this, REQUEST_CODE, new Intent(PlayerService.ACTION_PLAY), PendingIntent.FLAG_UPDATE_CURRENT);
         PendingIntent pIntentNext = PendingIntent.getBroadcast(this, REQUEST_CODE, new Intent(PlayerService.ACTION_NEXT), PendingIntent.FLAG_UPDATE_CURRENT);
         PendingIntent pIntentExit = PendingIntent.getBroadcast(this, REQUEST_CODE, new Intent(PlayerService.ACTION_EXIT), PendingIntent.FLAG_UPDATE_CURRENT);
@@ -414,15 +420,11 @@ public class PlayerService extends Service {
 
         builder.setContentIntent(contentIntent)
                 .setSmallIcon(R.drawable.music_box_white)
-                // большая картинка
                 .setLargeIcon(BitmapFactory.decodeResource(res, R.drawable.music_box_white))
-                //.setTicker(res.getString(R.string.warning)) // текст в строке состояния
                 .setTicker(text)
                 .setWhen(System.currentTimeMillis())
                 .setAutoCancel(false)
-                //.setContentTitle(res.getString(R.string.notifytitle))
-                .setContentTitle("Custom Media Player")
-                //.setContentText(res.getString(R.string.notifytext))
+                .setContentTitle(getString(R.string.notification_title))
                 .setContentText(text)
                 .addAction(playPauseIcon, "", pIntentPlay)
                 .addAction(android.R.drawable.ic_media_next, "", pIntentNext)
@@ -439,4 +441,5 @@ public class PlayerService extends Service {
 
         return notification;
     }
+
 }

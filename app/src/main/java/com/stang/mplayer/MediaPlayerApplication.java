@@ -30,7 +30,7 @@ public class MediaPlayerApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        // todo init all global libraries
+        // init all global libraries
         initImageLoader();
     }
 

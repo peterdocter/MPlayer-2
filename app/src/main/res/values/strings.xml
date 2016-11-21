@@ -2,6 +2,10 @@
     <string name="app_name">MPlayer</string>
     <string name="search_prompt">Search...</string>
     <string name="sort_prompt">Sort</string>
+    <string name="add_files_prompt">Select a File to add</string>
+    <string name="notification_title">Custom MediaPlayer</string>
+    <string name="storage_permission_needed">Storage permission is needed to show playlist</string>
+
     <string-array name="sort_criteria">
         <item>sort:Song</item>
         <item>sort:Artist</item>

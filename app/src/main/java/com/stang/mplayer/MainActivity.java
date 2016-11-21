@@ -1,23 +1,25 @@
 package com.stang.mplayer;
 
+import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
-import android.content.ContentResolver;
-import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
-import android.provider.MediaStore;
 import android.os.Bundle;
 import android.app.LoaderManager;
 import android.content.Loader;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -32,18 +34,24 @@ import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.support.design.widget.Snackbar;
 
 import com.nostra13.universalimageloader.core.ImageLoader;
 
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements ActivityCompat.OnRequestPermissionsResultCallback {
     public static final String TAG = MainActivity.class.getSimpleName();
     public static final int FILE_SELECT_CODE = 1;
     private static final int PLAYLIST_LOADER_ID = 1;
+    private static final int PERMISSION_REQUEST_CODE = 1;
+    private Boolean mExtStoragePermissionGranted = false;
+    private String[] mPermissionToRequest = {
+        Manifest.permission.READ_EXTERNAL_STORAGE,
+        //Manifest.permission.READ_SMS
+    };
 
     PlayerService mPlayerService;
     ServiceData mServiceData;
@@ -51,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
     private BroadcastReceiver mReceiver;
     private IntentFilter mFilter;
 
-    private RecyclerAdapter mAdapter;
+    private RecyclerAdapter mPlaylistAdapter;
 
     private LinearLayoutManager mLayoutManager;
     ImageButton prevButton;
@@ -88,10 +96,10 @@ public class MainActivity extends AppCompatActivity {
 
                 case R.id.button_repeat:
                     if (mServiceData.getRepeat()) {
-                        repeatButton.setImageResource(R.drawable.ic_repeat_black_18dp);
+                        repeatButton.setImageResource(R.drawable.ic_repeat_white_18dp);
                         mServiceData.setRepeat(false);
                     } else {
-                        repeatButton.setImageResource(R.drawable.ic_repeat_white_18dp);
+                        repeatButton.setImageResource(R.drawable.ic_repeat_black_18dp);
                         mServiceData.setRepeat(true);
                     }
                     break;
@@ -111,6 +119,34 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onStopTrackingTouch(SeekBar seekBar) {
             seekTo(seekBar.getProgress());
+        }
+    };
+
+    private SearchView.OnQueryTextListener mSearchlistener = new SearchView.OnQueryTextListener() {
+        @Override
+        public boolean onQueryTextSubmit(String query) {
+            if (!mServiceData.getSearchPhrase().equalsIgnoreCase(query)) {
+                mServiceData.setSearchPhrase(query);
+                mServiceData.doSearch();
+                onPlaylistChanged();
+            }
+            return false;
+        }
+        @Override
+        public boolean onQueryTextChange(String newText) {
+            if (!mServiceData.getSearchPhrase().equalsIgnoreCase(newText)) {
+                mServiceData.setSearchPhrase(newText);
+                mServiceData.doSearch();
+                onPlaylistChanged();
+            }
+            return false;
+        }
+    };
+
+    private RecyclerAdapter.OnClickListener mPlaylistOnClickListener = new RecyclerAdapter.OnClickListener() {
+        @Override
+        public void onClick(View view, Song song, int position) {
+            play(position);
         }
     };
 
@@ -140,95 +176,44 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.d(TAG, "OnCreate start");
+        //Log.d(TAG, "OnCreate start");
         getSupportActionBar().hide();
         setContentView(R.layout.activity_main);
 
-        // todo break to  of methods
-        mPlaylistView = (RecyclerView) findViewById(R.id.listView_playlist);
-
-        seekBar = (SeekBar) findViewById(R.id.seekBar);
-        seekBar.setOnSeekBarChangeListener(mSeekBarChangeListener);
-
-        prevButton = (ImageButton) findViewById(R.id.button_prev);
-        nextButton = (ImageButton) findViewById(R.id.button_next);
-        pauseButton = (ImageButton) findViewById(R.id.button_pause);
-        repeatButton = (ImageButton) findViewById(R.id.button_repeat);
-        searchView = (SearchView) findViewById(R.id.searchView);
-        searchSpinner = (Spinner) findViewById(R.id.spinner_search);
-        sortSpinner = (Spinner) findViewById(R.id.spinner_sort);
-
-        albumImage = (ImageView) findViewById(R.id.imageView_album);
-        artistTitle = (TextView) findViewById(R.id.textView_artistTitle);
-        songTitle = (TextView) findViewById(R.id.textView_songTitle);
-        duration = (TextView) findViewById(R.id.textView_duration);
-        remain = (TextView) findViewById(R.id.textView_remain);
-
-        prevButton.setOnClickListener(mControlClickListener);
-        nextButton.setOnClickListener(mControlClickListener);
-        pauseButton.setOnClickListener(mControlClickListener);
-        repeatButton.setOnClickListener(mControlClickListener);
-
-        mLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
-        mPlaylistView.setLayoutManager(mLayoutManager);
-
-
-        //PLAYLIST Adapter
-        //-------------------------------------
-        mAdapter = new RecyclerAdapter(MainActivity.this);
-        mAdapter.setOnItemClickListener(new RecyclerAdapter.OnClickListener() {
-            @Override
-            public void onClick(View view, Song song, int position) {
-                play(position);
-                Log.d(TAG, "playlist OnClick position=" + position + " Song=" + song.fileName);
-            }
-        });
-
-        mPlaylistView.setAdapter(mAdapter);
-        initSearchSpinner();
+        initViews();
+        initControls();
         initSortSpinner();
+        initSearchSpinner();
+        initSearchView();
+        initPlaylistView();
 
+        mFilter = getIntentFilterForActivity();
+        mReceiver = getBroadcastReceiverForActivity();
 
-        //SEARCH VIEW
-        //-----------------------------------------
+        mServiceIntent = new Intent(this, PlayerService.class);
+        startService(mServiceIntent);
+
+        //Log.d(TAG, "OnCreate finish");
+    }
+
+    private void initPlaylistView() {
+        mPlaylistAdapter = new RecyclerAdapter(MainActivity.this);
+        mPlaylistAdapter.setOnItemClickListener(mPlaylistOnClickListener);
+        mPlaylistView.setAdapter(mPlaylistAdapter);
+    }
+
+    private void initSearchView() {
         searchView.setQueryHint(getResources().getString(R.string.search_prompt));
         searchView.setOnQueryTextFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
             }
         });
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                //Toast.makeText(getBaseContext(), query, Toast.LENGTH_SHORT).show();
-                if (!mServiceData.getSearchPhrase().equalsIgnoreCase(query)) {
-                    mServiceData.setSearchPhrase(query);
-                    mServiceData.doSearch();
-                    onPlaylistChanged();
-                }
-                return false;
-            }
+        searchView.setOnQueryTextListener(mSearchlistener);
+    }
 
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                if (!mServiceData.getSearchPhrase().equalsIgnoreCase(newText)) {
-                    mServiceData.setSearchPhrase(newText);
-                    mServiceData.doSearch();
-                    onPlaylistChanged();
-                }
-                return false;
-            }
-        });
-
-
-        //Broadcast Receiver
-        //---------------------------------------------------
-        mFilter = new IntentFilter();
-        mFilter.addAction(PlayerService.ACTION_PROGRESS_CHANGED);
-        mFilter.addAction(PlayerService.ACTION_STATE_CHANGED);
-        mFilter.addAction(PlayerService.ACTION_POSITION_CHANGED);
-        mFilter.addAction(PlayerService.ACTION_EXIT);
-        mReceiver = new BroadcastReceiver() {
+    private BroadcastReceiver getBroadcastReceiverForActivity() {
+        return new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
@@ -248,11 +233,46 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         };
+    }
 
-        mServiceIntent = new Intent(this, PlayerService.class);
-        startService(mServiceIntent);
+    private IntentFilter getIntentFilterForActivity() {
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(PlayerService.ACTION_PROGRESS_CHANGED);
+        intentFilter.addAction(PlayerService.ACTION_STATE_CHANGED);
+        intentFilter.addAction(PlayerService.ACTION_POSITION_CHANGED);
+        intentFilter.addAction(PlayerService.ACTION_EXIT);
+        return intentFilter;
+    }
 
-        Log.d(TAG, "OnCreate finish");
+    private void initControls() {
+        seekBar = (SeekBar) findViewById(R.id.seekBar);
+        seekBar.setOnSeekBarChangeListener(mSeekBarChangeListener);
+
+        searchSpinner = (Spinner) findViewById(R.id.spinner_search);
+        sortSpinner = (Spinner) findViewById(R.id.spinner_sort);
+        searchView = (SearchView) findViewById(R.id.searchView);
+
+        prevButton = (ImageButton) findViewById(R.id.button_prev);
+        nextButton = (ImageButton) findViewById(R.id.button_next);
+        pauseButton = (ImageButton) findViewById(R.id.button_pause);
+        repeatButton = (ImageButton) findViewById(R.id.button_repeat);
+
+        prevButton.setOnClickListener(mControlClickListener);
+        nextButton.setOnClickListener(mControlClickListener);
+        pauseButton.setOnClickListener(mControlClickListener);
+        repeatButton.setOnClickListener(mControlClickListener);
+    }
+
+    private void initViews() {
+        mPlaylistView = (RecyclerView) findViewById(R.id.listView_playlist);
+        mLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
+        mPlaylistView.setLayoutManager(mLayoutManager);
+
+        albumImage = (ImageView) findViewById(R.id.imageView_album);
+        artistTitle = (TextView) findViewById(R.id.textView_artistTitle);
+        songTitle = (TextView) findViewById(R.id.textView_songTitle);
+        duration = (TextView) findViewById(R.id.textView_duration);
+        remain = (TextView) findViewById(R.id.textView_remain);
     }
 
     private void initSortSpinner() {
@@ -311,17 +331,66 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
-    public void onProgressChanged(Intent intent) {
-        seekBar.setProgress(intent.getIntExtra("progress", 0));
-        remain.setText(intToTime(intent.getIntExtra("remain", 0)));
+    private void checkRuntimePermissions(){
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED) {
+            //final File externalStorage = Environment.getExternalStorageDirectory();
+            mExtStoragePermissionGranted = true;
+//            if (externalStorage != null) {
+//                mExtStoragePermissionGranted = true;
+//            } else {
+//                mExtStoragePermissionGranted = false;
+//            }
+        } else {
+            mExtStoragePermissionGranted = false;
+        }
     }
 
+    private void requestReadExtStoragePermission(){
+        Log.d(TAG, "requestReadExtStoragePermission");
+        ActivityCompat.requestPermissions(MainActivity.this,
+                new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                PERMISSION_REQUEST_CODE);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                           int[] grantResults) {
+        Log.d(TAG, "onRequestPermissionsResult");
+        if (requestCode == PERMISSION_REQUEST_CODE && grantResults.length == 1) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                //mExtStoragePermissionGranted = true;
+                Toast.makeText(MainActivity.this, "GRANTED", Toast.LENGTH_LONG).show();
+                loadPlaylistFromExtStorage();
+            }   else {
+                showSnackbarRequestPermission();
+            }
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
+    private void showSnackbarRequestPermission(){
+        final String message = getString(R.string.storage_permission_needed);
+        //Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
+                    Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_INDEFINITE)
+                            .setAction("GRANT", new View.OnClickListener() {
+                                @Override
+                                public void onClick(View v) {
+                                    requestReadExtStoragePermission();
+                                }
+                            })
+                            .show();
+    }
+
+    public void onProgressChanged(Intent intent) {
+        seekBar.setProgress(intent.getIntExtra(PlayerService.ARG_INTENT_PROGRESS, 0));
+        remain.setText(intToTime(intent.getIntExtra(PlayerService.ARG_INTENT_REMAIN, 0)));
+    }
 
     public void onPositionChanged(Intent intent) {
-        // todo extract like a constants
-        int position = intent.getIntExtra("position", -1);
-        int dur = intent.getIntExtra("duration", 0);
-        mAdapter.setCurrentPosition(position);
+        int position = intent.getIntExtra(PlayerService.ARG_INTENT_POSITION, -1);
+        int dur = intent.getIntExtra(PlayerService.ARG_INTENT_DURATION, 0);
+        mPlaylistAdapter.setCurrentPosition(position);
         mPlaylistView.scrollToPosition(position);
 
         Song song = mServiceData.getSong(position);
@@ -336,17 +405,16 @@ public class MainActivity extends AppCompatActivity {
         remain.setText(intToTime(0));
         seekBar.setProgress(0);
 
-        if (!mServiceData.isQueueEmpty()) mAdapter.notifyDataSetChanged();
+        if (!mServiceData.isQueueEmpty()) mPlaylistAdapter.notifyDataSetChanged();
     }
 
     public void onStateChanged(Intent intent) {
         if (mPlayerService != null) {
             pauseButton.setSelected(!mPlayerService.isPlaying());
         }
-        int dur = intent.getIntExtra("duration", 0);
+        int dur = intent.getIntExtra(PlayerService.ARG_INTENT_DURATION, 0);
         duration.setText(intToTime(dur));
     }
-
 
     public ServiceConnection myConnection = new ServiceConnection() {
 
@@ -359,39 +427,52 @@ public class MainActivity extends AppCompatActivity {
             searchSpinner.setSelection(mServiceData.getSearchType());
             searchView.setQuery(mServiceData.getSearchPhrase(), false);
 
-            Log.d(TAG, "onServiceConnected currentPosition = " + mServiceData.getCurrentPosition());
+            //Log.d(TAG, "onServiceConnected currentPosition = " + mServiceData.getCurrentPosition());
 
             pauseButton.setSelected(!mPlayerService.isPlaying());
 
             if (mServiceData.getRepeat()) {
-                repeatButton.setImageResource(android.R.drawable.btn_star_big_on);
+                repeatButton.setImageResource(R.drawable.ic_repeat_black_18dp);
             } else {
-                repeatButton.setImageResource(android.R.drawable.btn_star_big_off);
+                repeatButton.setImageResource(R.drawable.ic_repeat_white_18dp);
             }
 
             if (mServiceData.isSourceListEmpty()) {
-                Bundle bndl = new Bundle();
-                bndl.putString(PlaylistLoader.ARGS_PLAYLIST_URI, PlaylistLoader.DEFAULT_DATA_URI.toString());
-                getLoaderManager().initLoader(PLAYLIST_LOADER_ID, bndl, mPlaylistLoaderCalbacks)
-                        .forceLoad();
+                //checkRuntimePermissions();
+                if(ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                        == PackageManager.PERMISSION_GRANTED) {
+                    loadPlaylistFromExtStorage();
+                } else {
+                    if(ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this,
+                            Manifest.permission.READ_EXTERNAL_STORAGE)) {
+                        showSnackbarRequestPermission();
+                    } else {
+                        requestReadExtStoragePermission();
+                    }
+                }
             }
 
             onPlaylistChanged();
         }
 
         public void onServiceDisconnected(ComponentName className) {
-            Log.d(TAG, "ServiceConnection " + "disconnected");
+            //Log.d(TAG, "ServiceConnection " + "disconnected");
             mPlayerService = null;
         }
     };
 
+    private void loadPlaylistFromExtStorage(){
+        Bundle bndl = new Bundle();
+        bndl.putString(PlaylistLoader.ARGS_PLAYLIST_URI, PlaylistLoader.DEFAULT_DATA_URI.toString());
+        getLoaderManager().initLoader(PLAYLIST_LOADER_ID, bndl, mPlaylistLoaderCalbacks)
+                .forceLoad();
+    }
 
     public Handler myHandler = new Handler() {
         public void handleMessage(Message message) {
             Bundle data = message.getData();
         }
     };
-
 
     public void doBindService() {
         // Create a new Messenger for the communication back
@@ -401,7 +482,6 @@ public class MainActivity extends AppCompatActivity {
 
         bindService(mServiceIntent, myConnection, Context.BIND_AUTO_CREATE);
     }
-
 
     public void seekTo(int progress) {
         if (mPlayerService != null) {
@@ -415,7 +495,6 @@ public class MainActivity extends AppCompatActivity {
         registerReceiver(mReceiver, mFilter);
         doBindService();
     }
-
 
     @Override
     protected void onPause() {
@@ -435,14 +514,12 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
-
     public void play(int position) {
         if (position < 0) return;
         if (mPlayerService != null) {
             mPlayerService.play(position);
         }
     }
-
 
     public void pause() {
         if (mPlayerService != null) {
@@ -452,15 +529,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
     public void onPlaylistChanged() {
-        //mPlaylistView.scrollToPosition(mServiceData.getCurrentPosition());
-        mAdapter.notifyDataSetChanged();
+        mPlaylistAdapter.notifyDataSetChanged();
         mPlayerService.sendBroadcastState();
         mPlayerService.sendBroadcastPosition(mServiceData.getCurrentPosition());
         mPlayerService.sendBroadcastProgress();
     }
-
 
     public String intToTime(int time) {
         SimpleDateFormat df = new SimpleDateFormat("m:ss");
@@ -471,13 +545,11 @@ public class MainActivity extends AppCompatActivity {
 //        return String.format("%d:%02d", min, sec);
     }
 
-
     public void onPrevTrackClick() {
         if (mPlayerService != null) {
             mPlayerService.prevTrack();
         }
     }
-
 
     public void onNextTrackClick() {
         if (mPlayerService != null) {
@@ -485,24 +557,20 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
     private void killService() {
         if (mPlayerService != null) {
-            //unbindService(myConnection);
             stopService(mServiceIntent);
         }
         this.finish();
     }
 
-
     private void addFiles() {
-        Log.d(TAG, "addFiles");
+        //Log.d(TAG, "addFiles");
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("audio/*");      //all files
+        intent.setType("audio/*");      //all audio files
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-
         try {
-            startActivityForResult(Intent.createChooser(intent, "Select a File to add"), FILE_SELECT_CODE);
+            startActivityForResult(Intent.createChooser(intent, getString(R.string.add_files_prompt)), FILE_SELECT_CODE);
         } catch (android.content.ActivityNotFoundException ex) {
             Toast.makeText(this, "no FileManager", Toast.LENGTH_SHORT).show();
         }
@@ -520,7 +588,7 @@ public class MainActivity extends AppCompatActivity {
                 if (cursor != null) {
                     cursor.moveToFirst();
                 }
-                mAdapter.addSong(PlaylistLoader.parseCursor(cursor));
+                mPlaylistAdapter.addSong(PlaylistLoader.parseCursor(cursor));
 
                 if (mServiceData.getCurrentPosition() < 0) mServiceData.setCurrentPosition(0);
 
